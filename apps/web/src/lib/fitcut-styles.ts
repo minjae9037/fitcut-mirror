@@ -281,28 +281,28 @@ export const resultAngles = [
     label: "좌상단",
     source: "front",
     prompt:
-      "CAMERA POSITION: high above and to the viewer's left, looking down diagonally at the subject's front-left side. The top/crown and left temple must be visible. The face must be a true high diagonal view, not a straight-on portrait.",
+      "VIEW GROUP: RIGHT FACE. Camera is high above the subject's RIGHT side, looking down at the right cheek and right temple. The subject's right side of face must be visible, and the nose points slightly toward viewer left. This replaces the previous opposite corner composition.",
     className: "scale-100",
   },
   {
     label: "상단",
     source: "front",
     prompt:
-      "CAMERA POSITION: strict overhead top-down salon reference. Camera is above the crown looking downward. The crown, top texture, and hair parting are the focus. This must not look like a normal front portrait.",
+      "VIEW GROUP: FRONT. Camera is slightly above the subject but still from the front. Both eyes and both cheeks remain visible. Show the crown and top texture without turning into a side profile.",
     className: "scale-100",
   },
   {
     label: "우상단",
     source: "front",
     prompt:
-      "CAMERA POSITION: high above and to the viewer's right, looking down diagonally at the subject's front-right side. The top/crown and right temple must be visible. The face must be a true high diagonal view, not a straight-on portrait.",
+      "VIEW GROUP: LEFT FACE. Camera is high above the subject's LEFT side, looking down at the left cheek and left temple. The subject's left side of face must be visible, and the nose points slightly toward viewer right. This replaces the previous opposite corner composition.",
     className: "scale-100",
   },
   {
     label: "좌측",
     source: "side",
     prompt:
-      "CAMERA POSITION: true left-side profile, 90 degrees from the front. Show left ear, left temple, sideburn, side line, and nape. The subject looks toward frame right. Do not make this a front-facing image.",
+      "VIEW GROUP: LEFT FACE. Camera is on the subject's LEFT side at eye level. Show the left cheek, left ear, left temple, sideburn, side line, and nape. The subject looks toward viewer right. Do not show the right cheek as the dominant side.",
     className: "scale-100",
   },
   {
@@ -316,28 +316,28 @@ export const resultAngles = [
     label: "우측",
     source: "side",
     prompt:
-      "CAMERA POSITION: true right-side profile, 90 degrees from the front. Show right ear, right temple, sideburn, side line, and nape. The subject looks toward frame left. Do not make this a front-facing image.",
+      "VIEW GROUP: RIGHT FACE. Camera is on the subject's RIGHT side at eye level. Show the right cheek, right ear, right temple, sideburn, side line, and nape. The subject looks toward viewer left. Do not show the left cheek as the dominant side.",
     className: "scale-100",
   },
   {
     label: "좌하단",
     source: "side",
     prompt:
-      "CAMERA POSITION: low camera below and to the viewer's left, looking upward at the subject's lower-left three-quarter angle. Chin slightly lifted, jawline and left neckline visible. Do not use the same angle as left profile or front.",
+      "VIEW GROUP: RIGHT FACE. Camera is low and on the subject's RIGHT side, looking upward at the right cheek and right jawline. Chin slightly lifted. The nose points toward viewer left. This replaces the previous opposite lower-corner composition.",
     className: "scale-100",
   },
   {
-    label: "후면",
-    source: "side",
+    label: "하단",
+    source: "front",
     prompt:
-      "CAMERA POSITION: true back view of the head and upper shoulders. The face is not visible. Show the rear crown, back hair shape, nape line, and leather jacket shoulders. This must be a rear salon reference, not a side view.",
+      "VIEW GROUP: FRONT. Camera is low and from the front, looking slightly upward. Both eyes, both cheeks, and the front hairline remain visible. Chin is slightly lifted, but the face must still read as the same person from the front.",
     className: "scale-100",
   },
   {
     label: "우하단",
     source: "side",
     prompt:
-      "CAMERA POSITION: low camera below and to the viewer's right, looking upward at the subject's lower-right three-quarter angle. Chin slightly lifted, jawline and right neckline visible. Do not use the same angle as right profile or front.",
+      "VIEW GROUP: LEFT FACE. Camera is low and on the subject's LEFT side, looking upward at the left cheek and left jawline. Chin slightly lifted. The nose points toward viewer right. This replaces the previous opposite lower-corner composition.",
     className: "scale-100",
   },
 ] as const;

@@ -89,6 +89,8 @@ Create a photorealistic men's salon consultation reference image.
 Use the uploaded photos as identity references.
 ${hasBaseReference ? "Use the first uploaded image as the canonical front hairstyle reference. Match its face, hair design, black leather jacket, black turtleneck, skin tone, and premium indoor lighting as closely as possible." : ""}
 Preserve the same person: facial identity, face shape, skin tone, clothing style, and overall realistic appearance.
+Facial consistency is more important than beautification. Do not make the face slimmer, wider, older, younger, heavier, thinner, sharper, softer, more handsome, or more doll-like.
+Keep the same cheek fullness, jaw width, chin shape, nose size, eye spacing, eyelid shape, mouth shape, facial asymmetry, and natural expression tone from the canonical reference.
 Replace the entire visible hairstyle with the requested style: hairline, fringe, crown, top volume, side line, texture, and silhouette.
 The final image must visibly show the requested hairstyle and must not keep the original uploaded hairstyle.
 Keep the image suitable for a hair stylist to understand the cut and styling direction.
@@ -103,7 +105,9 @@ ${stylePrompt}
 View angle:
 ${anglePrompt}
 
-The requested camera position is mandatory. Do not substitute a front-facing portrait when a side, top, low-angle, or rear view is requested.
+The requested camera position is mandatory.
+The 9-card set must include exactly three front-facing views, three views of the subject's left face, and three views of the subject's right face. Follow the VIEW GROUP in this request exactly.
+Never mirror the same side for every result. If this request says LEFT FACE, the subject's left cheek and left ear side must dominate. If this request says RIGHT FACE, the subject's right cheek and right ear side must dominate. If this request says FRONT, both eyes and both cheeks must be balanced.
 Single finished portrait only. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no sunglasses.
 `;
 }

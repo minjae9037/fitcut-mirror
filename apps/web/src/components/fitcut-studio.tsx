@@ -53,8 +53,9 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
 );
 const uploadImageMaxSide = 1024;
 const uploadImageQuality = 0.68;
-const previewGenerationConcurrency = 6;
-const angleGenerationConcurrency = 8;
+const previewGenerationConcurrency = 3;
+const angleGenerationConcurrency = 4;
+const imageRequestRetryCount = 2;
 const centerAngleLabel = "정면";
 
 export function FitcutStudio() {
@@ -279,16 +280,10 @@ export function FitcutStudio() {
         formData.append("side", currentPhotos.side.file);
         appendStylePayload(formData, style);
 
-        const response = await fetch(`${apiBaseUrl}/api/hairstyles/preview/`, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(await readApiError(response));
-        }
-
-        const payload = (await response.json()) as { imageUrl?: string };
+        const payload = await postFormWithRetry<{ imageUrl?: string }>(
+          `${apiBaseUrl}/api/hairstyles/preview/`,
+          formData,
+        );
 
         if (!payload.imageUrl) {
           throw new Error("OpenAI did not return an image.");
@@ -372,7 +367,9 @@ export function FitcutStudio() {
       })),
     );
     setIsRendering(true);
-    setStatusMessage(`${style.name} 정면 기준 이미지를 먼저 생성하는 중입니다.`);
+    setStatusMessage(
+      `${style.name} 선택 이미지를 정면 기준으로 고정하고 나머지 각도를 준비하는 중입니다.`,
+    );
 
     if (!liveAiEnabled) {
       window.setTimeout(() => {
@@ -388,48 +385,32 @@ export function FitcutStudio() {
 
     try {
       let successCount = 0;
+      const selectedPreviewUrl = style.imageUrl;
       const centerAngleIndex = resultAngles.findIndex(
         (angle) => angle.label === centerAngleLabel,
       );
       const centerAngle = resultAngles[centerAngleIndex];
       let baseReference: File | undefined;
 
-      if (centerAngle) {
-        try {
-          const imageUrl = await requestAngleImage({
-            angleIndex: centerAngleIndex,
-            frontPhoto,
-            sidePhoto,
-            style,
-          });
+      if (centerAngle && selectedPreviewUrl) {
+        baseReference = await dataUrlToFile(
+          selectedPreviewUrl,
+          "fitcut-selected-preview.jpg",
+        );
 
-          if (renderRunRef.current !== runId) {
-            return;
-          }
-
-          successCount += 1;
-          updateRenderedResult(centerAngle.label, {
-            imageUrl,
-            isGenerating: false,
-            error: undefined,
-          });
-          baseReference = await dataUrlToFile(imageUrl, "fitcut-center.jpg");
-          setStatusMessage(
-            `${style.name} 정면 기준이 준비되었습니다. 나머지 8장을 병렬 생성 중입니다.`,
-          );
-        } catch (error) {
-          console.error(error);
-          updateRenderedResult(centerAngle.label, {
-            isGenerating: false,
-            error:
-              error instanceof Error
-                ? error.message
-                : "정면 기준 이미지 생성 실패",
-          });
-          setStatusMessage(
-            "정면 기준 생성이 실패해도 나머지 각도 생성을 이어서 시도합니다.",
-          );
+        if (renderRunRef.current !== runId) {
+          return;
         }
+
+        successCount = 1;
+        updateRenderedResult(centerAngle.label, {
+          imageUrl: selectedPreviewUrl,
+          isGenerating: false,
+          error: undefined,
+        });
+        setStatusMessage(
+          `${style.name} 선택 이미지를 정면 기준으로 사용합니다. 나머지 8장을 병렬 생성 중입니다.`,
+        );
       }
 
       const remainingAngles = Array.from(resultAngles)
@@ -512,18 +493,9 @@ export function FitcutStudio() {
       formData.append("base", baseReference);
     }
 
-    const response = await fetch(`${apiBaseUrl}/api/hairstyles/angle/`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(await readApiError(response));
-    }
-
-    const payload = (await response.json()) as {
+    const payload = await postFormWithRetry<{
       imageUrl?: string;
-    };
+    }>(`${apiBaseUrl}/api/hairstyles/angle/`, formData);
 
     if (!payload.imageUrl) {
       throw new Error("OpenAI did not return an image.");
@@ -695,7 +667,7 @@ export function FitcutStudio() {
               {selectedStyle.name} 상담용 9장
             </h3>
             <p className="mt-1 text-sm text-[#b8aa95]">
-              정면 이미지를 기준으로 얼굴과 옷 톤을 유지하며 각도별 이미지를 생성합니다.
+              선택한 이미지를 정면 기준으로 고정하고, 얼굴과 옷 톤을 유지하며 나머지 각도를 생성합니다.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -945,7 +917,7 @@ function SelectedPreviewPanel({
           {isRendering ? "상담용 9장 생성 중" : "이 스타일로 상담용 9장 생성"}
         </button>
         <p className="mt-3 text-xs leading-5 text-[#a99b87]">
-          먼저 정면 기준 이미지를 만든 뒤, 그 기준을 받아 나머지 8개 각도를 병렬로 생성합니다.
+          선택한 사진을 정면 기준으로 그대로 쓰고, 그 기준을 받아 나머지 8개 각도를 병렬로 생성합니다.
         </p>
       </div>
     </section>
@@ -1109,6 +1081,64 @@ async function runWithConcurrency<T>(
   );
 
   await Promise.all(workers);
+}
+
+async function postFormWithRetry<T>(url: string, formData: FormData) {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= imageRequestRetryCount; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        return (await response.json()) as T;
+      }
+
+      const message = await readApiError(response);
+      const error = new Error(message);
+
+      if (!isRetriableImageError(response.status, message)) {
+        throw error;
+      }
+
+      lastError = error;
+    } catch (error) {
+      const nextError =
+        error instanceof Error ? error : new Error(String(error));
+
+      if (!isRetriableImageError(undefined, nextError.message)) {
+        throw nextError;
+      }
+
+      lastError = nextError;
+    }
+
+    if (attempt < imageRequestRetryCount) {
+      await wait(1800 + attempt * 2600);
+    }
+  }
+
+  throw lastError ?? new Error("Image request failed.");
+}
+
+function isRetriableImageError(status: number | undefined, message: string) {
+  return (
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    /rate limit|timeout|timed out|temporarily|overloaded|socket|network|failed to fetch/i.test(
+      message,
+    )
+  );
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 async function readApiError(response: Response) {
