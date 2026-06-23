@@ -41,12 +41,12 @@ export default function Home() {
         <div className="relative z-10 mx-auto flex max-w-6xl flex-col px-5 pb-10 pt-4 md:pb-14 md:pt-8">
           <div className="mb-6 max-w-2xl">
             <h1 className="text-4xl font-semibold leading-tight tracking-normal text-[#fffaf1] sm:text-5xl">
-              사진 한 장으로
+              사진 두 장으로
               <br />
               어울리는 헤어를 먼저 봅니다.
             </h1>
             <p className="mt-4 max-w-xl text-base leading-7 text-[#d8cbb8]">
-              사진을 올리면 스타일을 추천하고, 선택한 스타일 기준으로
+              정면과 측면 사진을 올리면 스타일을 추천하고, 선택한 스타일 기준으로
               미용사와 공유할 9개 각도 이미지를 준비합니다.
             </p>
           </div>
