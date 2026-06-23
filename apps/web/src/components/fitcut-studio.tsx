@@ -6,6 +6,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ImagePlus,
+  Info,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 import {
   fitcutStyles,
   resultAngles,
+  styleCatalog,
   type FitcutStyle,
   type FitcutStyleId,
 } from "@/lib/fitcut-styles";
@@ -63,6 +65,119 @@ const photoSlotConfig: Array<{
   { label: "우측면 사진", slot: "right" },
 ];
 
+type StyleLengthGroup = {
+  label: string;
+  styleIds: string[];
+};
+
+type HairColorChoice = {
+  id: string;
+  name: string;
+  prompt: string;
+  swatch: string;
+};
+
+const styleLengthGroups: StyleLengthGroup[] = [
+  {
+    label: "장발",
+    styleIds: ["curtain-perm", "soft-wolf", "slick-back-taper", "natural-wave"],
+  },
+  {
+    label: "중발",
+    styleIds: [
+      "leaf-cut",
+      "soft-parted",
+      "shadow-perm",
+      "comma-hair",
+      "dandy-cut",
+      "side-part-taper",
+    ],
+  },
+  {
+    label: "단발",
+    styleIds: [
+      "ivy-league",
+      "crop-cut",
+      "down-perm-two-block",
+      "textured-fringe",
+      "short-quiff",
+      "french-crop",
+      "buzz-taper",
+      "semi-crop",
+      "regent-cut",
+      "short-mash",
+    ],
+  },
+];
+
+const hairColorChoices: HairColorChoice[] = [
+  {
+    id: "natural-black",
+    name: "자연 흑발",
+    prompt:
+      "Keep a natural Korean black hair color with subtle realistic highlights.",
+    swatch: "#161412",
+  },
+  {
+    id: "dark-brown",
+    name: "다크 브라운",
+    prompt: "Use a deep dark brown hair color, natural and salon-polished.",
+    swatch: "#3a241a",
+  },
+  {
+    id: "choco-brown",
+    name: "초코 브라운",
+    prompt: "Use a warm chocolate brown hair color with soft shine.",
+    swatch: "#5a3828",
+  },
+  {
+    id: "ash-brown",
+    name: "애쉬 브라운",
+    prompt: "Use a muted ash brown hair color with cool salon tones.",
+    swatch: "#786f60",
+  },
+  {
+    id: "ash-gray",
+    name: "애쉬 그레이",
+    prompt:
+      "Use an ash gray hair color, cool smoky gray-brown, realistic and not silver-white.",
+    swatch: "#9b9a90",
+  },
+  {
+    id: "khaki-brown",
+    name: "카키 브라운",
+    prompt: "Use a subtle khaki brown hair color with olive undertones.",
+    swatch: "#6f6a43",
+  },
+  {
+    id: "blue-black",
+    name: "블루 블랙",
+    prompt: "Use a blue-black hair color with a restrained cool blue sheen.",
+    swatch: "#111827",
+  },
+  {
+    id: "milk-tea",
+    name: "밀크티 브라운",
+    prompt: "Use a soft milk-tea beige brown hair color, warm and premium.",
+    swatch: "#b08b62",
+  },
+  {
+    id: "copper-brown",
+    name: "카퍼 브라운",
+    prompt: "Use a tasteful copper brown hair color with warm red-brown notes.",
+    swatch: "#9d4f32",
+  },
+  {
+    id: "platinum-blond",
+    name: "플래티넘 블론드",
+    prompt:
+      "Use a refined platinum blond hair color, salon-bleached but realistic.",
+    swatch: "#d8c9a2",
+  },
+];
+
+const styleSampleImage = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/mock/fitcut-result-front.png`;
+
 const liveAiEnabled = process.env.NEXT_PUBLIC_ENABLE_LIVE_AI === "true";
 const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
   /\/$/,
@@ -86,6 +201,12 @@ export function FitcutStudio() {
   const [recommendations, setRecommendations] =
     useState<DisplayRecommendation[]>(fitcutStyles);
   const [analysisNotes, setAnalysisNotes] = useState(analysisLines);
+  const [preferredStyleIds, setPreferredStyleIds] = useState<string[]>([]);
+  const [activeInfoStyleId, setActiveInfoStyleId] = useState<string | null>(
+    styleCatalog[0]?.id ?? null,
+  );
+  const [selectedHairColorId, setSelectedHairColorId] =
+    useState("natural-black");
   const [selectedStyleId, setSelectedStyleId] = useState<FitcutStyleId | null>(
     null,
   );
@@ -103,10 +224,14 @@ export function FitcutStudio() {
   const readyPhotos = getPreparedPhotos(photos);
   const frontPhoto = readyPhotos?.front ?? photos.front ?? photos.left ?? photos.right;
   const sidePhoto = readyPhotos?.side ?? photos.left ?? photos.right ?? photos.front;
+  const hasAnyPhoto = Object.values(photos).some(Boolean);
   const selectedStyle = useMemo(
     () => recommendations.find((style) => style.id === selectedStyleId),
     [recommendations, selectedStyleId],
   );
+  const selectedHairColor =
+    hairColorChoices.find((color) => color.id === selectedHairColorId) ??
+    hairColorChoices[0];
 
   useEffect(() => {
     const createdUrls = createdUrlsRef.current;
@@ -177,7 +302,9 @@ export function FitcutStudio() {
       const nextReadyPhotos = getPreparedPhotos(nextPhotos);
 
       if (nextReadyPhotos) {
-        void generateRecommendations(nextReadyPhotos);
+        setStatusMessage(
+          "사진이 준비되었습니다. 원하는 컷과 컬러를 고른 뒤 추천 받기를 눌러주세요.",
+        );
       } else {
         setStatusMessage(
           "사진이 업로드되었습니다. 좌측면, 정면, 우측면 중 1장을 더 올려주세요.",
@@ -242,11 +369,12 @@ export function FitcutStudio() {
         recommendations?: DisplayRecommendation[];
         warning?: string;
       };
-      const nextRecommendations = (
-        payload.recommendations?.length ? payload.recommendations : fitcutStyles
-      )
-        .slice(0, 9)
-        .map((style) => ({
+      const recommendationSet = buildRecommendationSet(
+        payload.recommendations?.length ? payload.recommendations : fitcutStyles,
+        preferredStyleIds,
+        selectedHairColor,
+      );
+      const nextRecommendations = recommendationSet.map((style) => ({
           ...style,
           isGenerating: true,
           imageUrl: undefined,
@@ -263,7 +391,7 @@ export function FitcutStudio() {
       setStatusMessage(
         payload.warning
           ? "추천 분석이 지연되어 안전한 후보로 먼저 이미지를 생성합니다."
-          : "추천 스타일 9개를 찾았습니다. 각 스타일 이미지를 병렬 생성 중입니다.",
+          : `${selectedHairColor.name} 컬러 기준으로 추천 이미지 9장을 생성합니다.`,
       );
 
       void generateStylePreviews(currentPhotos, nextRecommendations, runId);
@@ -361,6 +489,37 @@ export function FitcutStudio() {
         ? `${style.name} 이미지를 준비 중입니다.`
         : `${style.name}을 크게 확인 중입니다. 마음에 들면 상담용 9장을 생성하세요.`,
     );
+  }
+
+  function togglePreferredStyle(styleId: string) {
+    setPreferredStyleIds((current) =>
+      current.includes(styleId)
+        ? current.filter((id) => id !== styleId)
+        : [...current, styleId],
+    );
+    setAnalysisReady(false);
+    setSelectedStyleId(null);
+    setRenderedResults([]);
+    setStatusMessage("선호 스타일이 반영되었습니다. 추천 받기를 눌러주세요.");
+  }
+
+  function selectHairColor(colorId: string) {
+    setSelectedHairColorId(colorId);
+    setAnalysisReady(false);
+    setSelectedStyleId(null);
+    setRenderedResults([]);
+    setStatusMessage("헤어 컬러가 반영되었습니다. 추천 받기를 눌러주세요.");
+  }
+
+  function startRecommendation() {
+    const currentReadyPhotos = getPreparedPhotos(photos);
+
+    if (!currentReadyPhotos) {
+      setStatusMessage("좌측면, 정면, 우측면 중 최소 2장을 업로드해 주세요.");
+      return;
+    }
+
+    void generateRecommendations(currentReadyPhotos);
   }
 
   async function generateConsultationSet(style: DisplayRecommendation) {
@@ -680,7 +839,7 @@ export function FitcutStudio() {
             3장을 모두 올리면 얼굴 방향과 두상 정보를 더 정확하게 반영합니다.
           </p>
         </div>
-        {Object.values(photos).some(Boolean) ? (
+        {hasAnyPhoto ? (
           <button
             className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-white/12 px-3 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
             onClick={resetAll}
@@ -691,6 +850,44 @@ export function FitcutStudio() {
           </button>
         ) : null}
       </div>
+
+      {hasAnyPhoto ? (
+        <div className="mt-5 grid gap-5 border-t border-white/10 pt-5">
+          <StylePreferencePanel
+            activeInfoStyleId={activeInfoStyleId}
+            onInfoChange={setActiveInfoStyleId}
+            onToggleStyle={togglePreferredStyle}
+            selectedStyleIds={preferredStyleIds}
+          />
+          <HairColorPanel
+            onSelect={selectHairColor}
+            selectedColorId={selectedHairColorId}
+          />
+          <div className="flex flex-col gap-3 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#fffaf1]">
+                선택한 컷 {preferredStyleIds.length}개 · 컬러 {selectedHairColor.name}
+              </p>
+              <p className="mt-1 text-sm text-[#b8aa95]">
+                선택한 컷은 우선 반영하고, 남은 추천은 Fitcut Mirror가 자동으로 채웁니다.
+              </p>
+            </div>
+            <button
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-4 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#4a412e] disabled:text-[#b8aa95] sm:w-fit"
+              disabled={!readyPhotos || isAnalyzing}
+              onClick={startRecommendation}
+              type="button"
+            >
+              {isAnalyzing ? (
+                <Loader2 aria-hidden="true" className="animate-spin" size={17} />
+              ) : (
+                <Sparkles aria-hidden="true" size={17} />
+              )}
+              추천 받기
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {isAnalyzing ? (
         <LoadingPanel
@@ -839,6 +1036,169 @@ function LoadingPanel({ label }: { label: string }) {
       />
       <p className="text-xl font-bold text-[#fffaf1]">{label}</p>
     </div>
+  );
+}
+
+function StylePreferencePanel({
+  activeInfoStyleId,
+  onInfoChange,
+  onToggleStyle,
+  selectedStyleIds,
+}: {
+  activeInfoStyleId: string | null;
+  onInfoChange: (styleId: string) => void;
+  onToggleStyle: (styleId: string) => void;
+  selectedStyleIds: string[];
+}) {
+  const activeStyle =
+    styleCatalog.find((style) => style.id === activeInfoStyleId) ??
+    styleCatalog[0];
+
+  return (
+    <section className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
+      <div className="flex items-center gap-2">
+        <Sparkles aria-hidden="true" className="text-[#f3d28a]" size={18} />
+        <h2 className="text-lg font-semibold text-[#fffaf1]">
+          원하는 헤어컷
+        </h2>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
+        원하는 컷을 여러 개 선택할 수 있습니다. 선택하지 않으면 전체를 자동 추천합니다.
+      </p>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="grid gap-4">
+          {styleLengthGroups.map((group) => (
+            <div key={group.label}>
+              <p className="mb-2 text-sm font-semibold text-[#f3d28a]">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.styleIds.map((styleId) => {
+                  const style = styleCatalog.find((item) => item.id === styleId);
+
+                  if (!style) {
+                    return null;
+                  }
+
+                  const selected = selectedStyleIds.includes(style.id);
+
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-md border transition ${
+                        selected
+                          ? "border-[#f3d28a] bg-[#30271a] text-[#fffaf1]"
+                          : "border-white/12 bg-white/5 text-[#d8cbb8]"
+                      }`}
+                      key={style.id}
+                    >
+                      <button
+                        className="h-9 px-3 text-sm font-semibold"
+                        onClick={() => onToggleStyle(style.id)}
+                        type="button"
+                      >
+                        {style.name}
+                      </button>
+                      <button
+                        aria-label={`${style.name} 설명 보기`}
+                        className="mr-1 flex size-7 items-center justify-center rounded-md text-[#f3d28a] hover:bg-white/8"
+                        onClick={() => onInfoChange(style.id)}
+                        onFocus={() => onInfoChange(style.id)}
+                        onMouseEnter={() => onInfoChange(style.id)}
+                        title={style.reason}
+                        type="button"
+                      >
+                        <Info aria-hidden="true" size={14} />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {activeStyle ? (
+          <div className="overflow-hidden rounded-md border border-white/10 bg-[#15130f]">
+            <div className="relative aspect-square overflow-hidden">
+              <img
+                alt={`${activeStyle.name} 샘플`}
+                className={`h-full w-full object-cover opacity-90 ${activeStyle.cropClass}`}
+                src={styleSampleImage}
+              />
+              <div
+                className={`absolute inset-0 bg-gradient-to-b ${activeStyle.accent} via-transparent to-[#0f0e0c]/88`}
+              />
+              <p className="absolute bottom-3 left-3 right-3 text-lg font-semibold text-[#fffaf1]">
+                {activeStyle.name}
+              </p>
+            </div>
+            <div className="p-3">
+              <p className="text-sm leading-6 text-[#d8cbb8]">
+                {activeStyle.reason}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeStyle.tags.map((tag) => (
+                  <span
+                    className="rounded-md bg-white/7 px-2 py-1 text-xs text-[#d8cbb8]"
+                    key={tag}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function HairColorPanel({
+  onSelect,
+  selectedColorId,
+}: {
+  onSelect: (colorId: string) => void;
+  selectedColorId: string;
+}) {
+  return (
+    <section className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
+      <div className="flex items-center gap-2">
+        <Sparkles aria-hidden="true" className="text-[#f3d28a]" size={18} />
+        <h2 className="text-lg font-semibold text-[#fffaf1]">
+          원하는 헤어 컬러
+        </h2>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
+        염색을 원하면 컬러를 선택하세요. 선택한 컬러가 추천 이미지 전체에 반영됩니다.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {hairColorChoices.map((color) => {
+          const selected = color.id === selectedColorId;
+
+          return (
+            <button
+              className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition ${
+                selected
+                  ? "border-[#f3d28a] bg-[#30271a] text-[#fffaf1]"
+                  : "border-white/12 bg-white/5 text-[#d8cbb8] hover:border-[#c9a96a]/55"
+              }`}
+              key={color.id}
+              onClick={() => onSelect(color.id)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="size-4 rounded-full border border-white/20"
+                style={{ backgroundColor: color.swatch }}
+              />
+              {color.name}
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1146,6 +1506,41 @@ function appendStylePayload(formData: FormData, style: DisplayRecommendation) {
   formData.append("styleName", style.name);
   formData.append("stylePrompt", style.prompt);
   formData.append("previewPrompt", style.previewPrompt);
+}
+
+function buildRecommendationSet(
+  autoRecommendations: FitcutStyle[],
+  preferredStyleIds: string[],
+  hairColor: HairColorChoice,
+) {
+  const selectedStyles = preferredStyleIds
+    .map((styleId) => styleCatalog.find((style) => style.id === styleId))
+    .filter((style): style is FitcutStyle => Boolean(style));
+  const merged: FitcutStyle[] = [];
+  const seen = new Set<string>();
+
+  for (const style of [...selectedStyles, ...autoRecommendations, ...styleCatalog]) {
+    if (seen.has(style.id)) {
+      continue;
+    }
+
+    seen.add(style.id);
+    merged.push(style);
+
+    if (merged.length === 9) {
+      break;
+    }
+  }
+
+  return merged.map((style) => applyHairColor(style, hairColor));
+}
+
+function applyHairColor(style: FitcutStyle, hairColor: HairColorChoice) {
+  return {
+    ...style,
+    prompt: `${style.prompt}\nHair color instruction: ${hairColor.prompt}`,
+    tags: [...style.tags.slice(0, 2), hairColor.name],
+  };
 }
 
 function appendPhotoPayload(formData: FormData, photos: PreparedPhotos) {
