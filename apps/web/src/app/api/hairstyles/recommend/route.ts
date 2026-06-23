@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { fitcutStyles } from "@/lib/fitcut-styles";
+import { recommendHairStyles } from "@/lib/server/openai-recommendations";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const fallbackNotes = [
+  "정면과 측면 사진을 함께 기준으로 보았어요.",
+  "AI 추천 분석이 지연되어 우선 안전한 남성 스타일 후보를 보여드립니다.",
+  "마음에 드는 디자인을 누르면 크게 확인하고, 버튼을 눌러 상담용 9장을 생성할 수 있습니다.",
+];
 
 export async function POST(request: Request) {
   try {
@@ -17,15 +24,26 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      mode: "live",
-      notes: [
-        "정면과 측면 사진을 함께 기준으로 봤어요.",
-        "각 헤어스타일 카드는 실제 AI 합성 이미지로 순차 생성됩니다.",
-        "마음에 드는 디자인을 누르면 같은 스타일로 상담용 9장 구성을 만듭니다.",
-      ],
-      recommendations: fitcutStyles,
-    });
+    try {
+      const recommendation = await recommendHairStyles(front, side);
+
+      return NextResponse.json({
+        mode: "live",
+        ...recommendation,
+      });
+    } catch (error) {
+      console.error("OpenAI recommendation failed", error);
+
+      return NextResponse.json({
+        mode: "fallback",
+        notes: fallbackNotes,
+        recommendations: fitcutStyles,
+        warning:
+          error instanceof Error
+            ? error.message
+            : "헤어스타일 추천 분석에 실패했습니다.",
+      });
+    }
   } catch (error) {
     console.error(error);
 

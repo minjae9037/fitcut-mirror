@@ -10,8 +10,18 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const front = formData.get("front");
     const side = formData.get("side");
-    const styleId = String(formData.get("styleId") ?? "");
-    const style = getStyleById(styleId);
+    const styleId = getString(formData.get("styleId"));
+    const fallbackStyle = getStyleById(styleId);
+    const styleName =
+      getString(formData.get("styleName")) ||
+      fallbackStyle?.name ||
+      "추천 스타일";
+    const stylePrompt =
+      getString(formData.get("stylePrompt")) || fallbackStyle?.prompt;
+    const previewPrompt =
+      getString(formData.get("previewPrompt")) ||
+      fallbackStyle?.previewPrompt ||
+      "Create a fresh front three-quarter premium salon portrait with a natural expression and clear hairstyle visibility.";
 
     if (!(front instanceof File) || !(side instanceof File)) {
       return NextResponse.json(
@@ -20,9 +30,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!style) {
+    if (!stylePrompt) {
       return NextResponse.json(
-        { error: "지원하지 않는 헤어스타일입니다." },
+        { error: "헤어스타일 프롬프트가 필요합니다." },
         { status: 400 },
       );
     }
@@ -32,14 +42,14 @@ export async function POST(request: Request) {
       side,
       source: "both",
       size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "1024x1024",
-      prompt: buildPreviewPrompt(style.prompt, style.previewPrompt),
+      prompt: buildPreviewPrompt(styleName, stylePrompt, previewPrompt),
     });
 
     return NextResponse.json({
       mode: "live",
       style: {
-        id: style.id,
-        name: style.name,
+        id: styleId,
+        name: styleName,
       },
       imageUrl,
     });
@@ -58,7 +68,11 @@ export async function POST(request: Request) {
   }
 }
 
-function buildPreviewPrompt(stylePrompt: string, previewPrompt: string) {
+function buildPreviewPrompt(
+  styleName: string,
+  stylePrompt: string,
+  previewPrompt: string,
+) {
   return `
 Create one realistic AI hairstyle try-on portrait for a men's salon consultation.
 
@@ -69,7 +83,10 @@ Replace the visible hairstyle with the requested haircut. Change the hairline, f
 The requested haircut must be clearly visible. Do not keep the original uploaded hairstyle.
 Create a new portrait variation rather than copying the uploaded selfie composition exactly.
 
-Requested haircut:
+Requested haircut name:
+${styleName}
+
+Requested haircut details:
 ${stylePrompt}
 
 Composition and expression:
@@ -77,4 +94,8 @@ ${previewPrompt}
 
 Return a single finished photorealistic portrait. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no accessories.
 `;
+}
+
+function getString(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value.trim() : "";
 }

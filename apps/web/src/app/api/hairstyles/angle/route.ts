@@ -11,9 +11,15 @@ export async function POST(request: Request) {
     const base = formData.get("base");
     const front = formData.get("front");
     const side = formData.get("side");
-    const styleId = String(formData.get("styleId") ?? "");
+    const styleId = getString(formData.get("styleId"));
     const angleIndex = Number(formData.get("angleIndex") ?? -1);
-    const style = getStyleById(styleId);
+    const fallbackStyle = getStyleById(styleId);
+    const styleName =
+      getString(formData.get("styleName")) ||
+      fallbackStyle?.name ||
+      "추천 스타일";
+    const stylePrompt =
+      getString(formData.get("stylePrompt")) || fallbackStyle?.prompt;
     const angle = resultAngles[angleIndex];
 
     if (!(front instanceof File) || !(side instanceof File)) {
@@ -23,7 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!style || !angle) {
+    if (!stylePrompt || !angle) {
       return NextResponse.json(
         { error: "지원하지 않는 헤어스타일 또는 각도입니다." },
         { status: 400 },
@@ -36,7 +42,12 @@ export async function POST(request: Request) {
       side,
       source: angle.source,
       size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",
-      prompt: buildAnglePrompt(style.prompt, angle.prompt, base instanceof File),
+      prompt: buildAnglePrompt(
+        styleName,
+        stylePrompt,
+        angle.prompt,
+        base instanceof File,
+      ),
     });
 
     return NextResponse.json({
@@ -60,6 +71,7 @@ export async function POST(request: Request) {
 }
 
 function buildAnglePrompt(
+  styleName: string,
   stylePrompt: string,
   anglePrompt: string,
   hasBaseReference: boolean,
@@ -73,8 +85,12 @@ Preserve the same person: facial identity, face shape, skin tone, clothing style
 Replace the entire visible hairstyle with the requested style: hairline, fringe, crown, top volume, side line, texture, and silhouette.
 The final image must visibly show the requested hairstyle and must not keep the original uploaded hairstyle.
 Keep the image suitable for a hair stylist to understand the cut and styling direction.
+Keep face and clothing tone consistent with the canonical front result, while changing camera angle and expression enough to avoid duplicate-looking images.
 
-Hairstyle:
+Hairstyle name:
+${styleName}
+
+Hairstyle details:
 ${stylePrompt}
 
 View angle:
@@ -83,4 +99,8 @@ ${anglePrompt}
 The requested camera position is mandatory. Do not substitute a front-facing portrait when a side, top, low-angle, or rear view is requested.
 Single finished portrait only. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no sunglasses.
 `;
+}
+
+function getString(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value.trim() : "";
 }
