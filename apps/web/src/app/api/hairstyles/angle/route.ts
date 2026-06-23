@@ -7,6 +7,13 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
+    if (!hasFormContentType(request)) {
+      return NextResponse.json(
+        { error: "정면 사진과 측면 사진이 모두 필요합니다." },
+        { status: 400 },
+      );
+    }
+
     const formData = await request.formData();
     const base = formData.get("base");
     const front = formData.get("front");
@@ -103,4 +110,13 @@ Single finished portrait only. No before-after comparison, no split screen, no t
 
 function getString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function hasFormContentType(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  return (
+    contentType.includes("multipart/form-data") ||
+    contentType.includes("application/x-www-form-urlencoded")
+  );
 }

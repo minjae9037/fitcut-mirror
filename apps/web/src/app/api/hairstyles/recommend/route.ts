@@ -13,6 +13,13 @@ const fallbackNotes = [
 
 export async function POST(request: Request) {
   try {
+    if (!hasFormContentType(request)) {
+      return NextResponse.json(
+        { error: "정면 사진과 측면 사진이 모두 필요합니다." },
+        { status: 400 },
+      );
+    }
+
     const formData = await request.formData();
     const front = formData.get("front");
     const side = formData.get("side");
@@ -57,4 +64,13 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+function hasFormContentType(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  return (
+    contentType.includes("multipart/form-data") ||
+    contentType.includes("application/x-www-form-urlencoded")
+  );
 }
