@@ -85,6 +85,7 @@ Create one realistic AI hairstyle try-on portrait for a men's salon consultation
 
 Use the uploaded front photo as the main identity reference and the side photo as the head-shape reference.
 Keep the same man: face, skin tone, facial proportions, clothing style, black leather jacket, black turtleneck, and premium indoor cafe/salon mood.
+Maintain the exact left-right orientation from the uploaded front photo. Do not mirror, invert, or horizontally flip the face, hair part, facial asymmetry, jacket zipper, hand position, or background landmarks.
 Edit the hair only.
 Replace the visible hairstyle with the requested haircut. Change the hairline, fringe, crown, top volume, side line, texture, and overall silhouette.
 The requested haircut must be clearly visible. Do not keep the original uploaded hairstyle.

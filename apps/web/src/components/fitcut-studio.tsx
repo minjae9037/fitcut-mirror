@@ -54,8 +54,8 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
 const uploadImageMaxSide = 1024;
 const uploadImageQuality = 0.68;
 const previewGenerationConcurrency = 3;
-const angleGenerationConcurrency = 4;
-const imageRequestRetryCount = 2;
+const angleGenerationConcurrency = 2;
+const imageRequestRetryCount = 3;
 const centerAngleLabel = "정면";
 
 export function FitcutStudio() {
@@ -416,6 +416,7 @@ export function FitcutStudio() {
       const remainingAngles = Array.from(resultAngles)
         .map((angle, angleIndex) => ({ angle, angleIndex }))
         .filter(({ angle }) => angle.label !== centerAngleLabel);
+      const failedAngles: typeof remainingAngles = [];
 
       await runWithConcurrency(
         remainingAngles,
@@ -453,9 +454,57 @@ export function FitcutStudio() {
                   ? error.message
                   : "상담용 이미지 생성 실패",
             });
+            failedAngles.push({ angle, angleIndex });
           }
         },
       );
+
+      if (failedAngles.length && renderRunRef.current === runId) {
+        setStatusMessage(
+          `${failedAngles.length}개 이미지가 지연되어 순차 재생성을 시도합니다.`,
+        );
+
+        await runWithConcurrency(failedAngles, 1, async ({ angle, angleIndex }) => {
+          try {
+            if (renderRunRef.current !== runId) {
+              return;
+            }
+
+            updateRenderedResult(angle.label, {
+              isGenerating: true,
+              error: undefined,
+            });
+
+            const imageUrl = await requestAngleImage({
+              angleIndex,
+              baseReference,
+              frontPhoto,
+              sidePhoto,
+              style,
+            });
+
+            if (renderRunRef.current !== runId) {
+              return;
+            }
+
+            successCount += 1;
+            updateRenderedResult(angle.label, {
+              imageUrl,
+              isGenerating: false,
+              error: undefined,
+            });
+          } catch (error) {
+            console.error(error);
+            updateRenderedResult(angle.label, {
+              isGenerating: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "상담용 이미지 재생성 실패",
+            });
+          }
+        });
+      }
 
       if (renderRunRef.current === runId) {
         setStatusMessage(`${successCount}개 상담용 이미지가 생성되었습니다.`);

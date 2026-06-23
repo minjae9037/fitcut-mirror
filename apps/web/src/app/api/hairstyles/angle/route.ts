@@ -87,8 +87,9 @@ function buildAnglePrompt(
 Create a photorealistic men's salon consultation reference image.
 
 Use the uploaded photos as identity references.
-${hasBaseReference ? "Use the first uploaded image as the canonical front hairstyle reference. Match its face, hair design, black leather jacket, black turtleneck, skin tone, and premium indoor lighting as closely as possible." : ""}
+${hasBaseReference ? "Use the first uploaded image as the canonical front hairstyle reference. Match its face, hair design, black leather jacket, black turtleneck, skin tone, and premium indoor lighting as closely as possible. Never mirror, invert, or horizontally flip this canonical reference." : ""}
 Preserve the same person: facial identity, face shape, skin tone, clothing style, and overall realistic appearance.
+Maintain the exact left-right orientation from the canonical reference. Do not horizontally flip the face, hair part, hair flow, facial asymmetry, jacket zipper, hand position, or background landmarks.
 Facial consistency is more important than beautification. Do not make the face slimmer, wider, older, younger, heavier, thinner, sharper, softer, more handsome, or more doll-like.
 Keep the same cheek fullness, jaw width, chin shape, nose size, eye spacing, eyelid shape, mouth shape, facial asymmetry, and natural expression tone from the canonical reference.
 Replace the entire visible hairstyle with the requested style: hairline, fringe, crown, top volume, side line, texture, and silhouette.
