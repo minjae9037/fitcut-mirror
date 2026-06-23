@@ -18,6 +18,8 @@ export async function POST(request: Request) {
     const base = formData.get("base");
     const front = formData.get("front");
     const side = formData.get("side");
+    const leftSide = formData.get("leftSide");
+    const rightSide = formData.get("rightSide");
     const styleId = getString(formData.get("styleId"));
     const angleIndex = Number(formData.get("angleIndex") ?? -1);
     const fallbackStyle = getStyleById(styleId);
@@ -46,6 +48,8 @@ export async function POST(request: Request) {
     const imageUrl = await editHairImage({
       base: base instanceof File ? base : undefined,
       front,
+      leftSide: leftSide instanceof File ? leftSide : undefined,
+      rightSide: rightSide instanceof File ? rightSide : undefined,
       side,
       source: angle.source,
       size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",

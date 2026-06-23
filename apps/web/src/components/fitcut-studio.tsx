@@ -18,7 +18,7 @@ import {
   type FitcutStyleId,
 } from "@/lib/fitcut-styles";
 
-type PhotoSlot = "front" | "side";
+type PhotoSlot = "left" | "front" | "right";
 
 type UploadedPhoto = {
   file: File;
@@ -41,9 +41,26 @@ type RenderedResult = {
 };
 
 const analysisLines = [
-  "정면과 측면 사진을 함께 기준으로 보았어요.",
-  "얼굴형, 옆 라인, 현재 모발 볼륨을 기준으로 어울릴 가능성이 높은 스타일을 먼저 추천합니다.",
+  "내 사진을 바탕으로 어울리는 헤어스타일을 정교하게 추천합니다.",
+  "Choose a look, preview it on your face, and bring a clearer reference to your stylist.",
   "마음에 드는 디자인을 누르면 크게 확인하고, 버튼을 눌러 상담용 9장을 생성할 수 있습니다.",
+];
+
+type PreparedPhotos = {
+  front: UploadedPhoto;
+  side: UploadedPhoto;
+  leftSide?: UploadedPhoto;
+  rightSide?: UploadedPhoto;
+  uploadedCount: number;
+};
+
+const photoSlotConfig: Array<{
+  label: string;
+  slot: PhotoSlot;
+}> = [
+  { label: "좌측면 사진", slot: "left" },
+  { label: "정면 사진", slot: "front" },
+  { label: "우측면 사진", slot: "right" },
 ];
 
 const liveAiEnabled = process.env.NEXT_PUBLIC_ENABLE_LIVE_AI === "true";
@@ -60,8 +77,9 @@ const centerAngleLabel = "정면";
 
 export function FitcutStudio() {
   const [photos, setPhotos] = useState<Record<PhotoSlot, UploadedPhoto | null>>({
+    left: null,
     front: null,
-    side: null,
+    right: null,
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisReady, setAnalysisReady] = useState(false);
@@ -74,15 +92,17 @@ export function FitcutStudio() {
   const [isRendering, setIsRendering] = useState(false);
   const [renderedResults, setRenderedResults] = useState<RenderedResult[]>([]);
   const [statusMessage, setStatusMessage] = useState("");
+  const leftInputRef = useRef<HTMLInputElement>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
-  const sideInputRef = useRef<HTMLInputElement>(null);
+  const rightInputRef = useRef<HTMLInputElement>(null);
   const createdUrlsRef = useRef<Set<string>>(new Set());
   const analysisTimerRef = useRef<number | null>(null);
   const previewRunRef = useRef(0);
   const renderRunRef = useRef(0);
 
-  const frontPhoto = photos.front;
-  const sidePhoto = photos.side;
+  const readyPhotos = getPreparedPhotos(photos);
+  const frontPhoto = readyPhotos?.front ?? photos.front ?? photos.left ?? photos.right;
+  const sidePhoto = readyPhotos?.side ?? photos.left ?? photos.right ?? photos.front;
   const selectedStyle = useMemo(
     () => recommendations.find((style) => style.id === selectedStyleId),
     [recommendations, selectedStyleId],
@@ -125,8 +145,6 @@ export function FitcutStudio() {
     previewRunRef.current += 1;
     renderRunRef.current += 1;
 
-    const otherPhoto = slot === "front" ? photos.side : photos.front;
-
     try {
       const file = await prepareUploadImage(originalFile);
       const nextUrl = URL.createObjectURL(file);
@@ -134,6 +152,10 @@ export function FitcutStudio() {
         file,
         fileName: originalFile.name,
         url: nextUrl,
+      };
+      const nextPhotos = {
+        ...photos,
+        [slot]: nextPhoto,
       };
 
       setPhotos((current) => {
@@ -152,16 +174,13 @@ export function FitcutStudio() {
         };
       });
 
-      if (otherPhoto) {
-        const nextPhotos = {
-          ...photos,
-          [slot]: nextPhoto,
-        } as Record<PhotoSlot, UploadedPhoto>;
+      const nextReadyPhotos = getPreparedPhotos(nextPhotos);
 
-        void generateRecommendations(nextPhotos);
+      if (nextReadyPhotos) {
+        void generateRecommendations(nextReadyPhotos);
       } else {
         setStatusMessage(
-          "사진이 업로드되었습니다. 나머지 사진 1장을 더 올려주세요.",
+          "사진이 업로드되었습니다. 좌측면, 정면, 우측면 중 1장을 더 올려주세요.",
         );
       }
     } catch (error) {
@@ -177,7 +196,7 @@ export function FitcutStudio() {
   }
 
   async function generateRecommendations(
-    currentPhotos: Record<PhotoSlot, UploadedPhoto>,
+    currentPhotos: PreparedPhotos,
   ) {
     const runId = ++previewRunRef.current;
 
@@ -204,8 +223,7 @@ export function FitcutStudio() {
 
     try {
       const formData = new FormData();
-      formData.append("front", currentPhotos.front.file);
-      formData.append("side", currentPhotos.side.file);
+      appendPhotoPayload(formData, currentPhotos);
 
       const response = await fetch(
         `${apiBaseUrl}/api/hairstyles/recommend/`,
@@ -263,7 +281,7 @@ export function FitcutStudio() {
   }
 
   async function generateStylePreviews(
-    currentPhotos: Record<PhotoSlot, UploadedPhoto>,
+    currentPhotos: PreparedPhotos,
     styles: DisplayRecommendation[],
     runId: number,
   ) {
@@ -276,8 +294,7 @@ export function FitcutStudio() {
 
       try {
         const formData = new FormData();
-        formData.append("front", currentPhotos.front.file);
-        formData.append("side", currentPhotos.side.file);
+        appendPhotoPayload(formData, currentPhotos);
         appendStylePayload(formData, style);
 
         const payload = await postFormWithRetry<{ imageUrl?: string }>(
@@ -347,7 +364,10 @@ export function FitcutStudio() {
   }
 
   async function generateConsultationSet(style: DisplayRecommendation) {
-    if (!frontPhoto || !sidePhoto) {
+    const currentReadyPhotos = getPreparedPhotos(photos);
+
+    if (!currentReadyPhotos) {
+      setStatusMessage("좌측면, 정면, 우측면 중 최소 2장을 업로드해 주세요.");
       return;
     }
 
@@ -377,7 +397,9 @@ export function FitcutStudio() {
           return;
         }
 
-        setRenderedResults(createMockResults(style, frontPhoto, sidePhoto));
+        setRenderedResults(
+          createMockResults(style, currentReadyPhotos.front, currentReadyPhotos.side),
+        );
         setIsRendering(false);
       }, 450);
       return;
@@ -430,8 +452,7 @@ export function FitcutStudio() {
             const imageUrl = await requestAngleImage({
               angleIndex,
               baseReference,
-              frontPhoto,
-              sidePhoto,
+              photos: currentReadyPhotos,
               style,
             });
 
@@ -478,8 +499,7 @@ export function FitcutStudio() {
             const imageUrl = await requestAngleImage({
               angleIndex,
               baseReference,
-              frontPhoto,
-              sidePhoto,
+              photos: currentReadyPhotos,
               style,
             });
 
@@ -522,19 +542,16 @@ export function FitcutStudio() {
   async function requestAngleImage({
     angleIndex,
     baseReference,
-    frontPhoto,
-    sidePhoto,
+    photos,
     style,
   }: {
     angleIndex: number;
     baseReference?: File;
-    frontPhoto: UploadedPhoto;
-    sidePhoto: UploadedPhoto;
+    photos: PreparedPhotos;
     style: DisplayRecommendation;
   }) {
     const formData = new FormData();
-    formData.append("front", frontPhoto.file);
-    formData.append("side", sidePhoto.file);
+    appendPhotoPayload(formData, photos);
     appendStylePayload(formData, style);
     formData.append("angleIndex", String(angleIndex));
 
@@ -582,7 +599,7 @@ export function FitcutStudio() {
       analysisTimerRef.current = null;
     }
 
-    setPhotos({ front: null, side: null });
+    setPhotos({ left: null, front: null, right: null });
     setIsAnalyzing(false);
     setAnalysisReady(false);
     setSelectedStyleId(null);
@@ -594,17 +611,40 @@ export function FitcutStudio() {
     previewRunRef.current += 1;
     renderRunRef.current += 1;
 
+    if (leftInputRef.current) {
+      leftInputRef.current.value = "";
+    }
+
     if (frontInputRef.current) {
       frontInputRef.current.value = "";
     }
 
-    if (sideInputRef.current) {
-      sideInputRef.current.value = "";
+    if (rightInputRef.current) {
+      rightInputRef.current.value = "";
     }
+  }
+
+  function getInputRef(slot: PhotoSlot) {
+    if (slot === "left") {
+      return leftInputRef;
+    }
+
+    if (slot === "right") {
+      return rightInputRef;
+    }
+
+    return frontInputRef;
   }
 
   return (
     <section className="w-full max-w-5xl rounded-lg border border-white/12 bg-[#171511]/88 p-4 shadow-2xl shadow-black/40 backdrop-blur md:p-5">
+      <input
+        accept="image/*"
+        className="sr-only"
+        onChange={(event) => void handlePhotoChange("left", event)}
+        ref={leftInputRef}
+        type="file"
+      />
       <input
         accept="image/*"
         className="sr-only"
@@ -615,34 +655,32 @@ export function FitcutStudio() {
       <input
         accept="image/*"
         className="sr-only"
-        onChange={(event) => void handlePhotoChange("side", event)}
-        ref={sideInputRef}
+        onChange={(event) => void handlePhotoChange("right", event)}
+        ref={rightInputRef}
         type="file"
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <UploadBox
-          label="정면 사진"
-          photo={photos.front}
-          onClick={() => frontInputRef.current?.click()}
-        />
-        <UploadBox
-          label="측면 사진"
-          photo={photos.side}
-          onClick={() => sideInputRef.current?.click()}
-        />
+      <div className="grid gap-4 lg:grid-cols-3">
+        {photoSlotConfig.map((item) => (
+          <UploadBox
+            key={item.slot}
+            label={item.label}
+            photo={photos[item.slot]}
+            onClick={() => getInputRef(item.slot).current?.click()}
+          />
+        ))}
       </div>
 
       <div className="mt-4 flex flex-col justify-between gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-semibold text-[#fffaf1]">
-            최소 2장 필요: 정면 1장, 측면 1장
+            최소 2장 필요: 좌측면, 정면, 우측면 중 2장을 업로드해 주세요.
           </p>
           <p className="mt-1 text-sm text-[#b8aa95]">
-            두 사진이 모두 올라가면 추천 결과가 자동으로 나옵니다.
+            3장을 모두 올리면 얼굴 방향과 두상 정보를 더 정확하게 반영합니다.
           </p>
         </div>
-        {photos.front || photos.side ? (
+        {Object.values(photos).some(Boolean) ? (
           <button
             className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-white/12 px-3 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
             onClick={resetAll}
@@ -1108,6 +1146,51 @@ function appendStylePayload(formData: FormData, style: DisplayRecommendation) {
   formData.append("styleName", style.name);
   formData.append("stylePrompt", style.prompt);
   formData.append("previewPrompt", style.previewPrompt);
+}
+
+function appendPhotoPayload(formData: FormData, photos: PreparedPhotos) {
+  formData.append("front", photos.front.file);
+  formData.append("side", photos.side.file);
+
+  if (photos.leftSide) {
+    formData.append("leftSide", photos.leftSide.file);
+  }
+
+  if (photos.rightSide) {
+    formData.append("rightSide", photos.rightSide.file);
+  }
+
+  formData.append("uploadedCount", String(photos.uploadedCount));
+}
+
+function getPreparedPhotos(
+  photos: Record<PhotoSlot, UploadedPhoto | null>,
+): PreparedPhotos | null {
+  const uploaded = photoSlotConfig
+    .map(({ slot }) => photos[slot])
+    .filter((photo): photo is UploadedPhoto => Boolean(photo));
+
+  if (uploaded.length < 2) {
+    return null;
+  }
+
+  const front = photos.front ?? uploaded[0];
+  const side =
+    (photos.left && photos.left !== front ? photos.left : null) ??
+    (photos.right && photos.right !== front ? photos.right : null) ??
+    uploaded.find((photo) => photo !== front);
+
+  if (!side) {
+    return null;
+  }
+
+  return {
+    front,
+    side,
+    leftSide: photos.left ?? undefined,
+    rightSide: photos.right ?? undefined,
+    uploadedCount: uploaded.length,
+  };
 }
 
 async function runWithConcurrency<T>(

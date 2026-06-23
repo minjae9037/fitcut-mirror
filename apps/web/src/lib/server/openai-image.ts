@@ -3,6 +3,8 @@ import OpenAI from "openai";
 type ImageEditInput = {
   base?: File;
   front: File;
+  leftSide?: File;
+  rightSide?: File;
   side: File;
   prompt: string;
   source?: "front" | "side" | "both";
@@ -12,7 +14,9 @@ type ImageEditInput = {
 export async function editHairImage({
   base,
   front,
+  leftSide,
   prompt,
+  rightSide,
   side,
   size = process.env.OPENAI_IMAGE_SIZE ?? "1024x1024",
   source = "both",
@@ -25,7 +29,14 @@ export async function editHairImage({
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const image = getReferenceImages({ base, front, side, source });
+  const image = getReferenceImages({
+    base,
+    front,
+    leftSide,
+    rightSide,
+    side,
+    source,
+  });
 
   const result = await openai.images.edit({
     model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2",
@@ -53,16 +64,23 @@ export async function editHairImage({
 function getReferenceImages({
   base,
   front,
+  leftSide,
+  rightSide,
   side,
   source,
 }: {
   base?: File;
   front: File;
+  leftSide?: File;
+  rightSide?: File;
   side: File;
   source: "front" | "side" | "both";
 }) {
-  const primary =
-    source === "front" ? [front] : source === "side" ? [side] : [front, side];
+  const sideReferences =
+    leftSide || rightSide
+      ? [leftSide, rightSide].filter((file): file is File => Boolean(file))
+      : [side];
+  const primary = source === "front" ? [front] : [front, ...sideReferences];
 
   return base ? [base, ...primary] : primary;
 }

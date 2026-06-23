@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const fallbackNotes = [
-  "정면과 측면 사진을 함께 기준으로 보았어요.",
-  "AI 추천 분석이 지연되어 우선 안전한 남성 스타일 후보를 보여드립니다.",
+  "내 사진을 바탕으로 어울리는 헤어스타일을 정교하게 추천합니다.",
+  "Choose a look, preview it on your face, and bring a clearer reference to your stylist.",
   "마음에 드는 디자인을 누르면 크게 확인하고, 버튼을 눌러 상담용 9장을 생성할 수 있습니다.",
 ];
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     if (!hasFormContentType(request)) {
       return NextResponse.json(
-        { error: "정면 사진과 측면 사진이 모두 필요합니다." },
+        { error: "좌측면, 정면, 우측면 중 최소 2장이 필요합니다." },
         { status: 400 },
       );
     }
@@ -23,16 +23,23 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const front = formData.get("front");
     const side = formData.get("side");
+    const leftSide = formData.get("leftSide");
+    const rightSide = formData.get("rightSide");
 
     if (!(front instanceof File) || !(side instanceof File)) {
       return NextResponse.json(
-        { error: "정면 사진과 측면 사진이 모두 필요합니다." },
+        { error: "좌측면, 정면, 우측면 중 최소 2장이 필요합니다." },
         { status: 400 },
       );
     }
 
     try {
-      const recommendation = await recommendHairStyles(front, side);
+      const recommendation = await recommendHairStyles({
+        front,
+        leftSide: leftSide instanceof File ? leftSide : undefined,
+        rightSide: rightSide instanceof File ? rightSide : undefined,
+        side,
+      });
 
       return NextResponse.json({
         mode: "live",

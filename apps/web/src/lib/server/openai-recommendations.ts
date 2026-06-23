@@ -16,7 +16,17 @@ type RecommendationPayload = {
   picks: RecommendationPick[];
 };
 
-export async function recommendHairStyles(front: File, side: File) {
+export async function recommendHairStyles({
+  front,
+  leftSide,
+  rightSide,
+  side,
+}: {
+  front: File;
+  leftSide?: File;
+  rightSide?: File;
+  side: File;
+}) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured.");
   }
@@ -25,9 +35,12 @@ export async function recommendHairStyles(front: File, side: File) {
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const [frontUrl, sideUrl] = await Promise.all([
+  const sideFiles = leftSide || rightSide ? [leftSide, rightSide] : [side];
+  const [frontUrl, ...sideUrls] = await Promise.all([
     fileToDataUrl(front),
-    fileToDataUrl(side),
+    ...sideFiles
+      .filter((file): file is File => Boolean(file))
+      .map((file) => fileToDataUrl(file)),
   ]);
 
   const completion = await openai.chat.completions.create({
@@ -43,7 +56,7 @@ export async function recommendHairStyles(front: File, side: File) {
         content: [
           {
             type: "text",
-            text: buildRecommendationPrompt(),
+            text: buildRecommendationPrompt(sideUrls.length + 1),
           },
           {
             type: "image_url",
@@ -52,13 +65,16 @@ export async function recommendHairStyles(front: File, side: File) {
               detail: "low",
             },
           },
-          {
-            type: "image_url",
-            image_url: {
-              url: sideUrl,
-              detail: "low",
-            },
-          },
+          ...sideUrls.map(
+            (url) =>
+              ({
+                type: "image_url",
+                image_url: {
+                  url,
+                  detail: "low",
+                },
+              }) as const,
+          ),
         ],
       },
     ],
@@ -119,16 +135,16 @@ export async function recommendHairStyles(front: File, side: File) {
 
   return {
     notes: [
-      "정면과 측면 사진을 함께 기준으로 보았어요.",
+      "내 사진을 바탕으로 어울리는 헤어스타일을 정교하게 추천합니다.",
       payload.summary ||
-        "얼굴형, 옆 라인, 현재 모발 볼륨을 기준으로 어울릴 가능성이 높은 스타일을 골랐습니다.",
+        "Choose a look, preview it on your face, and bring a clearer reference to your stylist.",
       "마음에 드는 디자인을 누르면 크게 확인하고, 버튼을 눌러 상담용 9장을 생성할 수 있습니다.",
     ],
     recommendations,
   };
 }
 
-function buildRecommendationPrompt() {
+function buildRecommendationPrompt(referenceCount: number) {
   const catalog = styleCatalog
     .map(
       (style) =>
@@ -137,7 +153,9 @@ function buildRecommendationPrompt() {
     .join("\n");
 
   return `
-Analyze the uploaded front and side photos together.
+Analyze the uploaded reference photos together. The first image is the primary front or best identity reference. Additional images are side references. More references mean better head-shape and face-angle understanding.
+
+Reference image count: ${referenceCount}.
 
 Pick exactly 9 unique hairstyles from this catalog. Do not always choose the first nine. Choose based on visible face shape, head shape, current hair volume, side silhouette, forehead exposure, and whether the result is realistic for a first salon pilot test.
 

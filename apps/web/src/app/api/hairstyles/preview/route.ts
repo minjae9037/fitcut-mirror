@@ -17,6 +17,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const front = formData.get("front");
     const side = formData.get("side");
+    const leftSide = formData.get("leftSide");
+    const rightSide = formData.get("rightSide");
     const styleId = getString(formData.get("styleId"));
     const fallbackStyle = getStyleById(styleId);
     const styleName =
@@ -46,6 +48,8 @@ export async function POST(request: Request) {
 
     const imageUrl = await editHairImage({
       front,
+      leftSide: leftSide instanceof File ? leftSide : undefined,
+      rightSide: rightSide instanceof File ? rightSide : undefined,
       side,
       source: "both",
       size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "1024x1024",
@@ -83,9 +87,9 @@ function buildPreviewPrompt(
   return `
 Create one realistic AI hairstyle try-on portrait for a men's salon consultation.
 
-Use the uploaded front photo as the main identity reference and the side photo as the head-shape reference.
+Use the uploaded front or primary photo as the main identity reference, and use the side reference photos for head shape, side silhouette, and face angle.
 Keep the same man: face, skin tone, facial proportions, clothing style, black leather jacket, black turtleneck, and premium indoor cafe/salon mood.
-Maintain the exact left-right orientation from the uploaded front photo. Do not mirror, invert, or horizontally flip the face, hair part, facial asymmetry, jacket zipper, hand position, or background landmarks.
+Maintain the exact left-right orientation from the uploaded front or primary photo. Do not mirror, invert, or horizontally flip the face, hair part, facial asymmetry, jacket zipper, hand position, or background landmarks.
 Edit the hair only.
 Replace the visible hairstyle with the requested haircut. Change the hairline, fringe, crown, top volume, side line, texture, and overall silhouette.
 The requested haircut must be clearly visible. Do not keep the original uploaded hairstyle.
