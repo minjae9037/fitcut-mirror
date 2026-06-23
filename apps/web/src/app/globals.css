@@ -26,6 +26,18 @@ body {
     sans-serif;
 }
 
+.font-korean-calligraphy {
+  font-family:
+    "Gungsuh",
+    "궁서",
+    "Batang",
+    "AppleMyungjo",
+    "Times New Roman",
+    serif;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
 button,
 a,
 textarea,

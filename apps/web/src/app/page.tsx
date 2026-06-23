@@ -44,7 +44,7 @@ export default function Home() {
 
         <div className="relative z-10 mx-auto flex max-w-6xl flex-col px-5 pb-10 pt-4 md:pb-14 md:pt-8">
           <div className="mb-6 max-w-3xl">
-            <h1 className="text-4xl font-semibold leading-tight tracking-normal text-[#fffaf1] sm:text-5xl">
+            <h1 className="font-korean-calligraphy text-4xl leading-tight tracking-normal text-[#fffaf1] sm:text-5xl">
               내 얼굴에 어울리는 헤어스타일을 추천받아보세요.
             </h1>
             <p className="mt-3 text-base leading-7 text-[#d8cbb8]">

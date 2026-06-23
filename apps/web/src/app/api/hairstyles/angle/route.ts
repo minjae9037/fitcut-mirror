@@ -111,9 +111,9 @@ View angle:
 ${anglePrompt}
 
 The requested camera position is mandatory.
-The 9-card set must include exactly three front-facing views, three views of the subject's left face, and three views of the subject's right face. Follow the VIEW GROUP in this request exactly.
+This request is for one image that will be placed into a larger app grid later. Do not draw the app grid.
 Never mirror the same side for every result. If this request says LEFT FACE, the subject's left cheek and left ear side must dominate. If this request says RIGHT FACE, the subject's right cheek and right ear side must dominate. If this request says FRONT, both eyes and both cheeks must be balanced.
-Single finished portrait only. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no sunglasses.
+Single finished portrait only. Never create a 3x3 grid, collage, contact sheet, multi-panel layout, thumbnail board, before-after comparison, split screen, text, watermark, extra people, hats, or sunglasses.
 `;
 }
 

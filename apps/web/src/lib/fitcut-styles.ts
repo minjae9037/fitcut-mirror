@@ -279,65 +279,65 @@ export const fitcutStyles: FitcutStyle[] = styleCatalog.slice(0, 9);
 export const resultAngles = [
   {
     label: "좌상단",
-    source: "front",
+    source: "side",
     prompt:
-      "VIEW GROUP: RIGHT FACE. Camera is high above the subject's RIGHT side, looking down at the right cheek and right temple. The subject's right side of face must be visible, and the nose points slightly toward viewer left. This replaces the previous opposite corner composition.",
+      "GRID SLOT: UPPER LEFT. The subject must look toward the center of the grid, so the nose and gaze point toward viewer lower-right. Show the subject's RIGHT cheek, RIGHT jawline, and right temple from a high three-quarter angle. This must be different from the upper-right slot. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "상단",
     source: "front",
     prompt:
-      "VIEW GROUP: FRONT. Camera is slightly above the subject but still from the front. Both eyes and both cheeks remain visible. Show the crown and top texture without turning into a side profile.",
+      "GRID SLOT: TOP CENTER. Front-facing high angle. Both eyes and both cheeks remain balanced while the camera is slightly above the subject and the gaze feels subtly downward toward the center. Show crown and top texture without side profile. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "우상단",
-    source: "front",
+    source: "side",
     prompt:
-      "VIEW GROUP: LEFT FACE. Camera is high above the subject's LEFT side, looking down at the left cheek and left temple. The subject's left side of face must be visible, and the nose points slightly toward viewer right. This replaces the previous opposite corner composition.",
+      "GRID SLOT: UPPER RIGHT. The subject must look toward the center of the grid, so the nose and gaze point toward viewer lower-left. Show the subject's LEFT cheek, LEFT jawline, and left temple from a high three-quarter angle. This must be different from the upper-left slot. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "좌측",
     source: "side",
     prompt:
-      "VIEW GROUP: LEFT FACE. Camera is on the subject's LEFT side at eye level. Show the left cheek, left ear, left temple, sideburn, side line, and nape. The subject looks toward viewer right. Do not show the right cheek as the dominant side.",
+      "GRID SLOT: MIDDLE LEFT. The subject must look toward the center of the grid, so the nose and gaze point toward viewer right. Show the subject's RIGHT cheek, RIGHT jawline, right ear-side line, temple, sideburn, and nape from an eye-level three-quarter side view. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "정면",
     source: "front",
     prompt:
-      "CAMERA POSITION: exact straight-on front reference, eye-level camera, both eyes equally visible, clear hairline, balanced shoulders, calm neutral expression. This is the canonical center reference for the hairstyle.",
+      "GRID SLOT: CENTER. Exact straight-on front reference, eye-level camera, both eyes equally visible, clear hairline, balanced shoulders, calm neutral expression. This is the canonical center reference for the hairstyle. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "우측",
     source: "side",
     prompt:
-      "VIEW GROUP: RIGHT FACE. Camera is on the subject's RIGHT side at eye level. Show the right cheek, right ear, right temple, sideburn, side line, and nape. The subject looks toward viewer left. Do not show the left cheek as the dominant side.",
+      "GRID SLOT: MIDDLE RIGHT. The subject must look toward the center of the grid, so the nose and gaze point toward viewer left. Show the subject's LEFT cheek, LEFT jawline, left ear-side line, temple, sideburn, and nape from an eye-level three-quarter side view. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "좌하단",
     source: "side",
     prompt:
-      "VIEW GROUP: RIGHT FACE. Camera is low and on the subject's RIGHT side, looking upward at the right cheek and right jawline. Chin slightly lifted. The nose points toward viewer left. This replaces the previous opposite lower-corner composition.",
+      "GRID SLOT: LOWER LEFT. The subject must look toward the center of the grid, so the nose and gaze point toward viewer upper-right. Show the subject's RIGHT jawline and RIGHT cheek clearly from a low three-quarter angle. Chin slightly lifted. This is the lower-left slot requested by the user. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "하단",
     source: "front",
     prompt:
-      "VIEW GROUP: FRONT. Camera is low and from the front, looking slightly upward. Both eyes, both cheeks, and the front hairline remain visible. Chin is slightly lifted, but the face must still read as the same person from the front.",
+      "GRID SLOT: BOTTOM CENTER. Front-facing low angle. Both eyes, both cheeks, and the front hairline remain visible while the camera looks slightly upward and the gaze feels subtly upward toward the center. Chin is slightly lifted but identity stays unchanged. Single portrait only, no collage.",
     className: "scale-100",
   },
   {
     label: "우하단",
     source: "side",
     prompt:
-      "VIEW GROUP: LEFT FACE. Camera is low and on the subject's LEFT side, looking upward at the left cheek and left jawline. Chin slightly lifted. The nose points toward viewer right. This replaces the previous opposite lower-corner composition.",
+      "GRID SLOT: LOWER RIGHT. The subject must look toward the center of the grid, so the nose and gaze point toward viewer upper-left. Show the subject's LEFT jawline and LEFT cheek clearly from a low three-quarter angle. Chin slightly lifted. This is the lower-right slot requested by the user. Single portrait only, no collage.",
     className: "scale-100",
   },
 ] as const;

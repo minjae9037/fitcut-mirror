@@ -176,8 +176,6 @@ const hairColorChoices: HairColorChoice[] = [
   },
 ];
 
-const styleSampleImage = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/mock/fitcut-result-front.png`;
-
 const liveAiEnabled = process.env.NEXT_PUBLIC_ENABLE_LIVE_AI === "true";
 const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
   /\/$/,
@@ -415,42 +413,52 @@ export function FitcutStudio() {
   ) {
     let successCount = 0;
 
-    await runWithConcurrency(styles, previewGenerationConcurrency, async (style) => {
-      if (previewRunRef.current !== runId) {
-        return;
-      }
+    const previewJobs = styles.map((style, previewIndex) => ({
+      previewIndex,
+      style,
+    }));
 
-      try {
-        const formData = new FormData();
-        appendPhotoPayload(formData, currentPhotos);
-        appendStylePayload(formData, style);
-
-        const payload = await postFormWithRetry<{ imageUrl?: string }>(
-          `${apiBaseUrl}/api/hairstyles/preview/`,
-          formData,
-        );
-
-        if (!payload.imageUrl) {
-          throw new Error("OpenAI did not return an image.");
+    await runWithConcurrency(
+      previewJobs,
+      previewGenerationConcurrency,
+      async ({ previewIndex, style }) => {
+        if (previewRunRef.current !== runId) {
+          return;
         }
 
-        successCount += 1;
-        updateRecommendation(style.id, {
-          imageUrl: payload.imageUrl,
-          isGenerating: false,
-          error: undefined,
-        });
-      } catch (error) {
-        console.error(error);
-        updateRecommendation(style.id, {
-          isGenerating: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "헤어 합성 이미지 생성 실패",
-        });
-      }
-    });
+        try {
+          const formData = new FormData();
+          appendPhotoPayload(formData, currentPhotos);
+          appendStylePayload(formData, style);
+          formData.append("previewIndex", String(previewIndex));
+
+          const payload = await postFormWithRetry<{ imageUrl?: string }>(
+            `${apiBaseUrl}/api/hairstyles/preview/`,
+            formData,
+          );
+
+          if (!payload.imageUrl) {
+            throw new Error("OpenAI did not return an image.");
+          }
+
+          successCount += 1;
+          updateRecommendation(style.id, {
+            imageUrl: payload.imageUrl,
+            isGenerating: false,
+            error: undefined,
+          });
+        } catch (error) {
+          console.error(error);
+          updateRecommendation(style.id, {
+            isGenerating: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "헤어 합성 이미지 생성 실패",
+          });
+        }
+      },
+    );
 
     if (previewRunRef.current !== runId) {
       return;
@@ -857,6 +865,7 @@ export function FitcutStudio() {
             activeInfoStyleId={activeInfoStyleId}
             onInfoChange={setActiveInfoStyleId}
             onToggleStyle={togglePreferredStyle}
+            selectedHairColor={selectedHairColor}
             selectedStyleIds={preferredStyleIds}
           />
           <HairColorPanel
@@ -1043,11 +1052,13 @@ function StylePreferencePanel({
   activeInfoStyleId,
   onInfoChange,
   onToggleStyle,
+  selectedHairColor,
   selectedStyleIds,
 }: {
   activeInfoStyleId: string | null;
   onInfoChange: (styleId: string) => void;
   onToggleStyle: (styleId: string) => void;
+  selectedHairColor: HairColorChoice;
   selectedStyleIds: string[];
 }) {
   const activeStyle =
@@ -1094,7 +1105,12 @@ function StylePreferencePanel({
                     >
                       <button
                         className="h-9 px-3 text-sm font-semibold"
-                        onClick={() => onToggleStyle(style.id)}
+                        onClick={() => {
+                          onInfoChange(style.id);
+                          onToggleStyle(style.id);
+                        }}
+                        onFocus={() => onInfoChange(style.id)}
+                        onMouseEnter={() => onInfoChange(style.id)}
                         type="button"
                       >
                         {style.name}
@@ -1121,10 +1137,9 @@ function StylePreferencePanel({
         {activeStyle ? (
           <div className="overflow-hidden rounded-md border border-white/10 bg-[#15130f]">
             <div className="relative aspect-square overflow-hidden">
-              <img
-                alt={`${activeStyle.name} 샘플`}
-                className={`h-full w-full object-cover opacity-90 ${activeStyle.cropClass}`}
-                src={styleSampleImage}
+              <StyleSamplePreview
+                hairColor={selectedHairColor}
+                style={activeStyle}
               />
               <div
                 className={`absolute inset-0 bg-gradient-to-b ${activeStyle.accent} via-transparent to-[#0f0e0c]/88`}
@@ -1153,6 +1168,273 @@ function StylePreferencePanel({
       </div>
     </section>
   );
+}
+
+function StyleSamplePreview({
+  hairColor,
+  style,
+}: {
+  hairColor: HairColorChoice;
+  style: FitcutStyle;
+}) {
+  const variant = getStyleSampleVariant(style.id);
+  const hair = hairColor.swatch;
+
+  return (
+    <svg
+      aria-label={`${style.name} ${hairColor.name} 샘플`}
+      className="h-full w-full bg-[#d8d5ce]"
+      role="img"
+      viewBox="0 0 320 320"
+    >
+      <rect fill="#d8d5ce" height="320" width="320" />
+      <path
+        d="M0 250 C55 226 86 232 125 252 C154 267 188 267 222 250 C260 232 294 231 320 244 V320 H0 Z"
+        fill="#b9b4aa"
+        opacity="0.55"
+      />
+      <path
+        d="M102 248 C116 214 132 199 160 199 C188 199 205 215 219 248 L242 320 H78 Z"
+        fill="#173631"
+      />
+      <path d="M134 199 H186 L193 249 H127 Z" fill="#c99c7b" />
+      <path
+        d="M126 226 C137 238 149 244 160 244 C172 244 184 238 195 226 L206 320 H114 Z"
+        fill="#0d0c0b"
+      />
+      <ellipse cx="108" cy="148" fill="#c49a7a" rx="12" ry="20" />
+      <ellipse cx="212" cy="148" fill="#c49a7a" rx="12" ry="20" />
+      <ellipse cx="160" cy="144" fill="#d7ad8c" rx="55" ry="70" />
+      <path
+        d="M126 181 C139 199 181 199 194 181 C187 212 134 212 126 181 Z"
+        fill="#c99c7b"
+        opacity="0.34"
+      />
+      <path
+        d="M133 142 C143 136 153 137 160 142"
+        fill="none"
+        stroke="#17110e"
+        strokeLinecap="round"
+        strokeWidth="3"
+      />
+      <path
+        d="M187 142 C177 136 167 137 160 142"
+        fill="none"
+        stroke="#17110e"
+        strokeLinecap="round"
+        strokeWidth="3"
+      />
+      <circle cx="143" cy="154" fill="#211713" r="3" />
+      <circle cx="177" cy="154" fill="#211713" r="3" />
+      <path
+        d="M160 156 C156 167 156 174 164 178"
+        fill="none"
+        stroke="#9b6e55"
+        strokeLinecap="round"
+        strokeWidth="3"
+      />
+      <path
+        d="M146 192 C154 197 167 197 175 192"
+        fill="none"
+        stroke="#8b5148"
+        strokeLinecap="round"
+        strokeWidth="3"
+      />
+      <SampleHairShape hairColor={hair} variant={variant} />
+      <rect
+        fill="none"
+        height="318"
+        opacity="0.25"
+        stroke="#fffaf1"
+        width="318"
+        x="1"
+        y="1"
+      />
+    </svg>
+  );
+}
+
+function SampleHairShape({
+  hairColor,
+  variant,
+}: {
+  hairColor: string;
+  variant: "buzz" | "crop" | "curtain" | "long" | "quiff" | "slick" | "wave";
+}) {
+  if (variant === "buzz") {
+    return (
+      <>
+        <path
+          d="M111 118 C116 77 141 58 169 61 C198 64 214 88 213 122 C190 111 139 108 111 118 Z"
+          fill={hairColor}
+        />
+        <path
+          d="M109 118 C126 102 192 102 213 120 C211 130 211 136 211 146 C186 132 134 132 110 146 C110 137 110 128 109 118 Z"
+          fill={hairColor}
+          opacity="0.82"
+        />
+      </>
+    );
+  }
+
+  if (variant === "crop") {
+    return (
+      <>
+        <path
+          d="M106 119 C109 82 136 58 171 60 C203 62 223 89 217 128 C193 110 142 105 106 119 Z"
+          fill={hairColor}
+        />
+        <path
+          d="M112 113 C123 138 140 125 150 145 C161 124 176 139 190 121 C199 139 207 129 216 146 C218 130 218 120 216 110 C185 94 139 94 112 113 Z"
+          fill={hairColor}
+        />
+      </>
+    );
+  }
+
+  if (variant === "curtain") {
+    return (
+      <>
+        <path
+          d="M106 132 C104 88 130 58 160 60 C190 58 216 88 214 132 C198 111 176 101 163 103 C169 121 178 133 194 145 C176 145 165 134 160 111 C154 135 142 145 124 145 C141 133 151 120 157 103 C142 101 121 111 106 132 Z"
+          fill={hairColor}
+        />
+        <path
+          d="M108 132 C116 158 121 177 113 195 C129 184 136 158 136 131 Z"
+          fill={hairColor}
+          opacity="0.92"
+        />
+        <path
+          d="M212 132 C204 158 199 177 207 195 C191 184 184 158 184 131 Z"
+          fill={hairColor}
+          opacity="0.92"
+        />
+      </>
+    );
+  }
+
+  if (variant === "long") {
+    return (
+      <>
+        <path
+          d="M98 139 C94 94 122 55 160 55 C199 55 226 95 222 140 C221 179 212 205 199 226 C194 195 194 165 203 139 C183 114 139 114 117 139 C126 165 126 195 121 226 C108 205 99 179 98 139 Z"
+          fill={hairColor}
+        />
+        <path
+          d="M117 118 C137 92 183 92 204 118 C185 108 173 105 160 112 C146 105 134 108 117 118 Z"
+          fill="#fffaf1"
+          opacity="0.08"
+        />
+      </>
+    );
+  }
+
+  if (variant === "quiff") {
+    return (
+      <>
+        <path
+          d="M104 127 C107 92 130 68 155 65 C161 45 183 49 199 68 C217 85 221 108 214 132 C190 114 138 109 104 127 Z"
+          fill={hairColor}
+        />
+        <path
+          d="M130 96 C150 59 188 55 205 90 C181 78 156 82 130 96 Z"
+          fill="#fffaf1"
+          opacity="0.12"
+        />
+      </>
+    );
+  }
+
+  if (variant === "slick") {
+    return (
+      <>
+        <path
+          d="M105 129 C105 86 133 57 172 61 C203 64 219 91 215 132 C188 113 139 112 105 129 Z"
+          fill={hairColor}
+        />
+        <path
+          d="M119 101 C148 83 177 78 207 88"
+          fill="none"
+          opacity="0.34"
+          stroke="#fffaf1"
+          strokeLinecap="round"
+          strokeWidth="6"
+        />
+        <path
+          d="M128 117 C154 100 181 95 210 103"
+          fill="none"
+          opacity="0.2"
+          stroke="#fffaf1"
+          strokeLinecap="round"
+          strokeWidth="5"
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <path
+        d="M101 132 C102 86 132 56 165 58 C198 60 221 91 219 133 C196 109 139 105 101 132 Z"
+        fill={hairColor}
+      />
+      <path
+        d="M113 125 C121 101 143 92 160 104 C178 88 202 104 210 129 C195 121 179 126 170 144 C158 123 142 123 130 145 C126 134 121 128 113 125 Z"
+        fill={hairColor}
+      />
+      <circle cx="132" cy="102" fill={hairColor} r="16" />
+      <circle cx="161" cy="92" fill={hairColor} r="19" />
+      <circle cx="191" cy="105" fill={hairColor} r="17" />
+    </>
+  );
+}
+
+function getStyleSampleVariant(
+  styleId: string,
+): "buzz" | "crop" | "curtain" | "long" | "quiff" | "slick" | "wave" {
+  if (styleId === "buzz-taper") {
+    return "buzz";
+  }
+
+  if (
+    [
+      "crop-cut",
+      "french-crop",
+      "semi-crop",
+      "textured-fringe",
+      "ivy-league",
+      "down-perm-two-block",
+      "short-mash",
+    ].includes(styleId)
+  ) {
+    return "crop";
+  }
+
+  if (["slick-back-taper", "side-part-taper"].includes(styleId)) {
+    return "slick";
+  }
+
+  if (["short-quiff", "regent-cut"].includes(styleId)) {
+    return "quiff";
+  }
+
+  if (["soft-wolf", "natural-wave"].includes(styleId)) {
+    return "long";
+  }
+
+  if (
+    [
+      "leaf-cut",
+      "soft-parted",
+      "comma-hair",
+      "curtain-perm",
+      "dandy-cut",
+    ].includes(styleId)
+  ) {
+    return "curtain";
+  }
+
+  return "wave";
 }
 
 function HairColorPanel({

@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     const leftSide = formData.get("leftSide");
     const rightSide = formData.get("rightSide");
     const styleId = getString(formData.get("styleId"));
+    const previewIndex = Number(formData.get("previewIndex") ?? 0);
     const fallbackStyle = getStyleById(styleId);
     const styleName =
       getString(formData.get("styleName")) ||
@@ -53,7 +54,12 @@ export async function POST(request: Request) {
       side,
       source: "both",
       size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "1024x1024",
-      prompt: buildPreviewPrompt(styleName, stylePrompt, previewPrompt),
+      prompt: buildPreviewPrompt(
+        styleName,
+        stylePrompt,
+        previewPrompt,
+        previewIndex,
+      ),
     });
 
     return NextResponse.json({
@@ -83,7 +89,10 @@ function buildPreviewPrompt(
   styleName: string,
   stylePrompt: string,
   previewPrompt: string,
+  previewIndex: number,
 ) {
+  const anglePrompt = getPreviewAnglePrompt(previewIndex);
+
   return `
 Create one realistic AI hairstyle try-on portrait for a men's salon consultation.
 
@@ -94,6 +103,7 @@ Edit the hair only.
 Replace the visible hairstyle with the requested haircut. Change the hairline, fringe, crown, top volume, side line, texture, and overall silhouette.
 The requested haircut must be clearly visible. Do not keep the original uploaded hairstyle.
 Create a new portrait variation rather than copying the uploaded selfie composition exactly.
+The preview card angle is mandatory. If the composition below conflicts with the preview card angle, follow the preview card angle.
 
 Requested haircut name:
 ${styleName}
@@ -101,11 +111,28 @@ ${styleName}
 Requested haircut details:
 ${stylePrompt}
 
+Preview card angle:
+${anglePrompt}
+
 Composition and expression:
 ${previewPrompt}
 
-Return a single finished photorealistic portrait. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no accessories.
+Return one single finished photorealistic portrait only. Never create a 3x3 grid, collage, contact sheet, multi-panel layout, thumbnail board, before-after comparison, split screen, text, watermark, extra people, hats, or accessories.
 `;
+}
+
+function getPreviewAnglePrompt(previewIndex: number) {
+  const slot = ((previewIndex % 3) + 3) % 3;
+
+  if (slot === 0) {
+    return "LEFT COLUMN CARD: three-quarter side-aware portrait. Show the subject's RIGHT cheek and RIGHT jawline, with the nose and gaze turning toward viewer right. This should not be a straight front view.";
+  }
+
+  if (slot === 1) {
+    return "CENTER COLUMN CARD: exact front-facing portrait. Both eyes and both cheeks are balanced, shoulders nearly even, no side profile, no mirrored left-right orientation.";
+  }
+
+  return "RIGHT COLUMN CARD: three-quarter side-aware portrait. Show the subject's LEFT cheek and LEFT jawline, with the nose and gaze turning toward viewer left. This should not be a straight front view.";
 }
 
 function getString(value: FormDataEntryValue | null) {
