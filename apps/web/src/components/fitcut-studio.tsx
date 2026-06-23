@@ -51,8 +51,8 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
   /\/$/,
   "",
 );
-const uploadImageMaxSide = 1280;
-const uploadImageQuality = 0.78;
+const uploadImageMaxSide = 1024;
+const uploadImageQuality = 0.68;
 const previewGenerationConcurrency = 6;
 const angleGenerationConcurrency = 8;
 const centerAngleLabel = "정면";
