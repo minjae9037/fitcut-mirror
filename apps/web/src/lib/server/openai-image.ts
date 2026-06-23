@@ -5,12 +5,14 @@ type ImageEditInput = {
   side: File;
   prompt: string;
   source?: "front" | "side" | "both";
+  size?: string;
 };
 
 export async function editHairImage({
   front,
   prompt,
   side,
+  size = process.env.OPENAI_IMAGE_SIZE ?? "768x768",
   source = "both",
 }: ImageEditInput) {
   if (!process.env.OPENAI_API_KEY) {
@@ -29,7 +31,7 @@ export async function editHairImage({
     image,
     prompt,
     n: 1,
-    size: "1024x1024",
+    size,
     quality: normalizeQuality(process.env.OPENAI_IMAGE_QUALITY),
     output_format: "jpeg",
     output_compression: normalizeCompression(
