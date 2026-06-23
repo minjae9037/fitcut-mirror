@@ -3,6 +3,7 @@ import { fitcutStyles } from "@/lib/fitcut-styles";
 import { editHairImage } from "@/lib/server/openai-image";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {

@@ -32,6 +32,9 @@ export async function editHairImage({
     size: "1024x1024",
     quality: normalizeQuality(process.env.OPENAI_IMAGE_QUALITY),
     output_format: "jpeg",
+    output_compression: normalizeCompression(
+      process.env.OPENAI_IMAGE_COMPRESSION,
+    ),
     input_fidelity: "high",
     background: "opaque",
   });
@@ -51,4 +54,14 @@ function normalizeQuality(value: string | undefined) {
   }
 
   return "low";
+}
+
+function normalizeCompression(value: string | undefined) {
+  const parsed = Number(value);
+
+  if (Number.isFinite(parsed)) {
+    return Math.min(100, Math.max(0, Math.round(parsed)));
+  }
+
+  return 70;
 }

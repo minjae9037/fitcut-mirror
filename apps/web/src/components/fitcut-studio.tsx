@@ -47,6 +47,8 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
   /\/$/,
   "",
 );
+const uploadImageMaxSide = 1280;
+const uploadImageQuality = 0.78;
 
 export function FitcutStudio() {
   const [photos, setPhotos] = useState<Record<PhotoSlot, UploadedPhoto | null>>({
@@ -89,13 +91,13 @@ export function FitcutStudio() {
     };
   }, []);
 
-  function handlePhotoChange(
+  async function handlePhotoChange(
     slot: PhotoSlot,
     event: ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0];
+    const originalFile = event.target.files?.[0];
 
-    if (!file) {
+    if (!originalFile) {
       return;
     }
 
@@ -107,42 +109,54 @@ export function FitcutStudio() {
     setAnalysisReady(false);
     setSelectedStyleId(null);
     setRenderedResults([]);
-    setStatusMessage("");
+    setStatusMessage("사진을 업로드용으로 압축하는 중입니다.");
 
     const otherPhoto = slot === "front" ? photos.side : photos.front;
-    const nextUrl = URL.createObjectURL(file);
 
-    setPhotos((current) => {
-      const previous = current[slot];
-
-      if (previous?.url) {
-        URL.revokeObjectURL(previous.url);
-        createdUrlsRef.current.delete(previous.url);
-      }
-
-      createdUrlsRef.current.add(nextUrl);
-
-      return {
-        ...current,
-        [slot]: {
-          file,
-          fileName: file.name,
-          url: nextUrl,
-        },
+    try {
+      const file = await prepareUploadImage(originalFile);
+      const nextUrl = URL.createObjectURL(file);
+      const nextPhoto = {
+        file,
+        fileName: originalFile.name,
+        url: nextUrl,
       };
-    });
 
-    if (otherPhoto) {
-      const nextPhotos = {
-        ...photos,
-        [slot]: {
-          file,
-          fileName: file.name,
-          url: nextUrl,
-        },
-      } as Record<PhotoSlot, UploadedPhoto>;
+      setPhotos((current) => {
+        const previous = current[slot];
 
-      void generateRecommendations(nextPhotos);
+        if (previous?.url) {
+          URL.revokeObjectURL(previous.url);
+          createdUrlsRef.current.delete(previous.url);
+        }
+
+        createdUrlsRef.current.add(nextUrl);
+
+        return {
+          ...current,
+          [slot]: nextPhoto,
+        };
+      });
+
+      if (otherPhoto) {
+        const nextPhotos = {
+          ...photos,
+          [slot]: nextPhoto,
+        } as Record<PhotoSlot, UploadedPhoto>;
+
+        void generateRecommendations(nextPhotos);
+      } else {
+        setStatusMessage("사진이 업로드되었습니다. 나머지 사진도 올려주세요.");
+      }
+    } catch (error) {
+      console.error(error);
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "사진을 준비하지 못했습니다. 다른 이미지로 다시 시도해 주세요.",
+      );
+    } finally {
+      event.target.value = "";
     }
   }
 
@@ -172,13 +186,16 @@ export function FitcutStudio() {
       formData.append("front", currentPhotos.front.file);
       formData.append("side", currentPhotos.side.file);
 
-      const response = await fetch(`${apiBaseUrl}/api/hairstyles/recommend`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        `${apiBaseUrl}/api/hairstyles/recommend/`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error(await readApiError(response));
       }
 
       const payload = (await response.json()) as {
@@ -197,9 +214,7 @@ export function FitcutStudio() {
       console.error(error);
       setRecommendations(fitcutStyles);
       setAnalysisNotes(analysisLines);
-      setStatusMessage(
-        "실제 AI 생성에 실패해 mock 추천으로 표시합니다. 서버 API 키와 배포 설정을 확인하세요.",
-      );
+      setStatusMessage(getGenerationFailureMessage(error));
     } finally {
       setIsAnalyzing(false);
       setAnalysisReady(true);
@@ -229,13 +244,13 @@ export function FitcutStudio() {
       formData.append("side", sidePhoto.file);
       formData.append("styleId", style.id);
 
-      const response = await fetch(`${apiBaseUrl}/api/hairstyles/render`, {
+      const response = await fetch(`${apiBaseUrl}/api/hairstyles/render/`, {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error(await readApiError(response));
       }
 
       const payload = (await response.json()) as {
@@ -249,9 +264,7 @@ export function FitcutStudio() {
       );
     } catch (error) {
       console.error(error);
-      setStatusMessage(
-        "9장 실제 생성에 실패해 mock 결과로 표시합니다. 서버 로그를 확인하세요.",
-      );
+      setStatusMessage(getGenerationFailureMessage(error, true));
       setRenderedResults(createMockResults(style, frontPhoto, sidePhoto));
     } finally {
       setIsRendering(false);
@@ -295,14 +308,14 @@ export function FitcutStudio() {
       <input
         accept="image/*"
         className="sr-only"
-        onChange={(event) => handlePhotoChange("front", event)}
+        onChange={(event) => void handlePhotoChange("front", event)}
         ref={frontInputRef}
         type="file"
       />
       <input
         accept="image/*"
         className="sr-only"
-        onChange={(event) => handlePhotoChange("side", event)}
+        onChange={(event) => void handlePhotoChange("side", event)}
         ref={sideInputRef}
         type="file"
       />
@@ -464,7 +477,7 @@ function UploadBox({
           <div className="p-3">
             <p className="text-sm font-semibold text-[#f3d28a]">{label}</p>
             <p className="mt-1 truncate text-xs text-[#b8aa95]">
-              {photo.fileName}
+              {photo.fileName} · {formatFileSize(photo.file.size)}
             </p>
           </div>
         </div>
@@ -489,6 +502,108 @@ function UploadBox({
       )}
     </button>
   );
+}
+
+async function prepareUploadImage(file: File) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("이미지 파일만 업로드할 수 있습니다.");
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadImage(sourceUrl);
+    const maxSourceSide = Math.max(image.naturalWidth, image.naturalHeight);
+    const scale = Math.min(1, uploadImageMaxSide / maxSourceSide);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("브라우저에서 사진을 처리하지 못했습니다.");
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(image, 0, 0, width, height);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (value) => {
+          if (value) {
+            resolve(value);
+          } else {
+            reject(new Error("사진 압축에 실패했습니다."));
+          }
+        },
+        "image/jpeg",
+        uploadImageQuality,
+      );
+    });
+
+    return new File([blob], toJpegName(file.name), {
+      lastModified: file.lastModified,
+      type: "image/jpeg",
+    });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () =>
+      reject(new Error("사진을 읽지 못했습니다. 다른 이미지로 다시 시도해 주세요."));
+    image.src = src;
+  });
+}
+
+function toJpegName(fileName: string) {
+  return fileName.replace(/\.[^.]+$/, "") + ".jpg";
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) {
+    return `${Math.max(1, Math.round(size / 1024))}KB`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(1)}MB`;
+}
+
+async function readApiError(response: Response) {
+  const text = await response.text();
+
+  try {
+    const payload = JSON.parse(text) as { error?: string };
+
+    return `${response.status}: ${payload.error ?? text}`;
+  } catch {
+    return `${response.status}: ${text || response.statusText}`;
+  }
+}
+
+function getGenerationFailureMessage(error: unknown, isRender = false) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/413|payload too large|request entity too large/i.test(message)) {
+    return "사진 용량이 커서 서버가 요청을 받지 못했습니다. 사진을 다시 업로드하면 자동 압축 후 재시도합니다.";
+  }
+
+  if (/quota|billing|credit|insufficient_quota|payment/i.test(message)) {
+    return "OpenAI 크레딧 또는 결제 설정이 필요합니다. Platform에서 Add credits 후 다시 시도해 주세요.";
+  }
+
+  if (/model|access|permission|organization/i.test(message)) {
+    return "OpenAI 모델 접근 권한 또는 프로젝트 설정을 확인해야 합니다. gpt-image-2 사용 가능 여부를 확인해 주세요.";
+  }
+
+  return isRender
+    ? "9장 실제 생성에 실패해 mock 결과로 표시합니다. 서버 로그를 확인하세요."
+    : "실제 AI 생성에 실패해 mock 추천으로 표시합니다. 서버 API 키와 배포 설정을 확인하세요.";
 }
 
 function StyleCard({
