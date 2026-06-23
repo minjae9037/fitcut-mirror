@@ -12,6 +12,7 @@ export type FitcutStyle = {
   reason: string;
   tags: string[];
   prompt: string;
+  previewPrompt: string;
   accent: string;
   cropClass: string;
 };
@@ -25,6 +26,8 @@ export const fitcutStyles: FitcutStyle[] = [
     tags: ["중간 기장", "가르마", "부드러운 인상"],
     prompt:
       "Modern Korean men's leaf cut: medium-length layered top, soft curtain-like fringe flowing to both sides, natural C-shaped movement around the temples, gentle side volume, clean neckline, refined salon finish.",
+    previewPrompt:
+      "Portrait variation A: front-left three-quarter close portrait, calm soft smile, eyes near the camera, shoulders slightly angled, premium cafe lighting. Do not copy the original selfie angle.",
     accent: "from-[#f3d28a]/26",
     cropClass: "scale-110 -translate-y-2",
   },
@@ -36,6 +39,8 @@ export const fitcutStyles: FitcutStyle[] = [
     tags: ["짧은 기장", "깔끔함", "관리 쉬움"],
     prompt:
       "Modern Ivy League haircut for men: short clean tapered sides, neatly trimmed sideburns, tidy top combed slightly upward and to one side, crisp hairline, professional polished finish.",
+    previewPrompt:
+      "Portrait variation B: straight-on professional headshot, neutral confident expression, chin level, clean profile-photo framing, no hand touching the head.",
     accent: "from-[#a7dcc5]/24",
     cropClass: "scale-125 -translate-y-5",
   },
@@ -47,6 +52,8 @@ export const fitcutStyles: FitcutStyle[] = [
     tags: ["6:4", "볼륨", "데일리"],
     prompt:
       "Korean 6:4 parted hairstyle: clear 6-to-4 side part, lifted front volume, smooth side flow, softly styled fringe away from the forehead, clean side shape, everyday premium salon styling.",
+    previewPrompt:
+      "Portrait variation C: front-right three-quarter portrait, relaxed expression, slight head turn, eye-level camera, polished salon consultation mood.",
     accent: "from-[#d6b38a]/24",
     cropClass: "scale-115 translate-x-2 -translate-y-3",
   },
@@ -58,6 +65,8 @@ export const fitcutStyles: FitcutStyle[] = [
     tags: ["짧은 기장", "선명함", "남성적"],
     prompt:
       "Clean men's crop cut: short textured top, controlled blunt fringe above the forehead, tight tapered sides, crisp outline around the temples, sharp modern masculine look.",
+    previewPrompt:
+      "Portrait variation D: slightly lower camera angle, face turned a little left, composed serious expression, sharper jawline emphasis, no hand near hair.",
     accent: "from-[#d9d2c4]/20",
     cropClass: "scale-130 -translate-y-7",
   },
@@ -69,6 +78,8 @@ export const fitcutStyles: FitcutStyle[] = [
     tags: ["단정함", "소프트", "첫 시도"],
     prompt:
       "Korean dandy cut: neat soft silhouette, natural rounded fringe, moderate top volume, tidy side line around the ears, conservative but stylish first-try salon result.",
+    previewPrompt:
+      "Portrait variation E: medium shot from chest up, seated cafe pose, gentle closed-mouth smile, head tilted subtly right, natural lifestyle composition.",
     accent: "from-[#f3d28a]/18",
     cropClass: "scale-108 -translate-y-1",
   },
@@ -80,6 +91,8 @@ export const fitcutStyles: FitcutStyle[] = [
     tags: ["펌", "볼륨", "입체감"],
     prompt:
       "Korean shadow perm: soft loose waves, airy top volume, textured movement through the fringe and crown, fuller silhouette without covering the eyes, natural salon perm finish.",
+    previewPrompt:
+      "Portrait variation F: closer beauty portrait, front-left angle, subtle thoughtful expression, fuller hair silhouette visible, soft premium indoor lighting.",
     accent: "from-[#8fb6a6]/20",
     cropClass: "scale-112 -translate-x-2 -translate-y-2",
   },
@@ -90,59 +103,63 @@ export const resultAngles = [
     label: "좌상단",
     source: "front",
     prompt:
-      "left upper three-quarter salon reference angle, showing top and left hair volume",
+      "CAMERA POSITION: high above and to the viewer's left, looking down diagonally at the subject's front-left side. The top/crown and left temple must be visible. The face should NOT be straight-on.",
     className: "-rotate-2 scale-110",
   },
   {
     label: "상단",
     source: "front",
-    prompt: "top-down salon reference angle, showing hair crown and top texture",
+    prompt:
+      "CAMERA POSITION: strict overhead top-down salon reference. Camera is above the crown looking downward. The crown, top texture, and hair parting are the focus. This must not look like a normal front portrait.",
     className: "scale-125 -translate-y-5",
   },
   {
     label: "우상단",
     source: "front",
     prompt:
-      "right upper three-quarter salon reference angle, showing top and right hair volume",
+      "CAMERA POSITION: high above and to the viewer's right, looking down diagonally at the subject's front-right side. The top/crown and right temple must be visible. The face should NOT be straight-on.",
     className: "rotate-2 scale-110",
   },
   {
     label: "좌측",
     source: "side",
-    prompt: "left side salon reference angle, showing side line and ear area",
+    prompt:
+      "CAMERA POSITION: true left-side profile, 90 degrees from the front. Show left ear, left temple, sideburn, side line, and nape. The subject looks toward frame right. Do not make this a front-facing image.",
     className: "scale-112 -translate-x-3",
   },
   {
     label: "정면",
     source: "front",
-    prompt: "front-facing salon reference angle, clear face and hairline",
+    prompt:
+      "CAMERA POSITION: exact straight-on front reference, eye-level camera, both eyes equally visible, clear hairline, balanced shoulders, calm neutral expression. This is the canonical center reference for the hairstyle.",
     className: "scale-105",
   },
   {
     label: "우측",
     source: "side",
-    prompt: "right side salon reference angle, showing side line and ear area",
+    prompt:
+      "CAMERA POSITION: true right-side profile, 90 degrees from the front. Show right ear, right temple, sideburn, side line, and nape. The subject looks toward frame left. Do not make this a front-facing image.",
     className: "scale-112 translate-x-3",
   },
   {
     label: "좌하단",
     source: "side",
     prompt:
-      "lower left three-quarter salon reference angle, showing neckline and side silhouette",
+      "CAMERA POSITION: low camera below and to the viewer's left, looking upward at the subject's lower-left three-quarter angle. Chin slightly lifted, jawline and left neckline visible. Do not use the same angle as left profile or front.",
     className: "-rotate-1 scale-115 translate-y-3",
   },
   {
     label: "후면",
     source: "side",
     prompt:
-      "back salon reference angle, showing rear neckline and back hair shape",
+      "CAMERA POSITION: true back view of the head and upper shoulders. The face is not visible. Show the rear crown, back hair shape, nape line, and leather jacket shoulders. This must be a rear salon reference, not a side view.",
     className: "scale-125 blur-[0.35px]",
   },
   {
     label: "우하단",
     source: "side",
     prompt:
-      "lower right three-quarter salon reference angle, showing neckline and side silhouette",
+      "CAMERA POSITION: low camera below and to the viewer's right, looking upward at the subject's lower-right three-quarter angle. Chin slightly lifted, jawline and right neckline visible. Do not use the same angle as right profile or front.",
     className: "rotate-1 scale-115 translate-y-3",
   },
 ] as const;

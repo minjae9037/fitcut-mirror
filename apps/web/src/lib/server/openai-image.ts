@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 type ImageEditInput = {
+  base?: File;
   front: File;
   side: File;
   prompt: string;
@@ -9,6 +10,7 @@ type ImageEditInput = {
 };
 
 export async function editHairImage({
+  base,
   front,
   prompt,
   side,
@@ -23,8 +25,7 @@ export async function editHairImage({
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const image =
-    source === "front" ? [front] : source === "side" ? [side] : [front, side];
+  const image = getReferenceImages({ base, front, side, source });
 
   const result = await openai.images.edit({
     model: process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2",
@@ -47,6 +48,23 @@ export async function editHairImage({
   }
 
   return `data:image/jpeg;base64,${imageBase64}`;
+}
+
+function getReferenceImages({
+  base,
+  front,
+  side,
+  source,
+}: {
+  base?: File;
+  front: File;
+  side: File;
+  source: "front" | "side" | "both";
+}) {
+  const primary =
+    source === "front" ? [front] : source === "side" ? [side] : [front, side];
+
+  return base ? [base, ...primary] : primary;
 }
 
 function normalizeQuality(value: string | undefined) {

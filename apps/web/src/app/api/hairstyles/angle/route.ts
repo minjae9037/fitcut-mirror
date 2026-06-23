@@ -8,6 +8,7 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
+    const base = formData.get("base");
     const front = formData.get("front");
     const side = formData.get("side");
     const styleId = String(formData.get("styleId") ?? "");
@@ -30,11 +31,12 @@ export async function POST(request: Request) {
     }
 
     const imageUrl = await editHairImage({
+      base: base instanceof File ? base : undefined,
       front,
       side,
       source: angle.source,
       size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",
-      prompt: buildAnglePrompt(style.prompt, angle.prompt),
+      prompt: buildAnglePrompt(style.prompt, angle.prompt, base instanceof File),
     });
 
     return NextResponse.json({
@@ -57,12 +59,17 @@ export async function POST(request: Request) {
   }
 }
 
-function buildAnglePrompt(stylePrompt: string, anglePrompt: string) {
+function buildAnglePrompt(
+  stylePrompt: string,
+  anglePrompt: string,
+  hasBaseReference: boolean,
+) {
   return `
 Create a photorealistic men's salon consultation reference image.
 
-Use the uploaded photo as the identity reference.
-Preserve the same person: facial identity, face shape, skin tone, expression, and overall realistic appearance.
+Use the uploaded photos as identity references.
+${hasBaseReference ? "Use the first uploaded image as the canonical front hairstyle reference. Match its face, hair design, black leather jacket, black turtleneck, skin tone, and premium indoor lighting as closely as possible." : ""}
+Preserve the same person: facial identity, face shape, skin tone, clothing style, and overall realistic appearance.
 Replace the entire visible hairstyle with the requested style: hairline, fringe, crown, top volume, side line, texture, and silhouette.
 The final image must visibly show the requested hairstyle and must not keep the original uploaded hairstyle.
 Keep the image suitable for a hair stylist to understand the cut and styling direction.
@@ -73,6 +80,7 @@ ${stylePrompt}
 View angle:
 ${anglePrompt}
 
+The requested camera position is mandatory. Do not substitute a front-facing portrait when a side, top, low-angle, or rear view is requested.
 Single finished portrait only. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no sunglasses.
 `;
 }

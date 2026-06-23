@@ -53,6 +53,9 @@ const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
 );
 const uploadImageMaxSide = 1280;
 const uploadImageQuality = 0.78;
+const previewGenerationConcurrency = 6;
+const angleGenerationConcurrency = 8;
+const centerAngleLabel = "정면";
 
 export function FitcutStudio() {
   const [photos, setPhotos] = useState<Record<PhotoSlot, UploadedPhoto | null>>({
@@ -249,7 +252,7 @@ export function FitcutStudio() {
   ) {
     let successCount = 0;
 
-    await runWithConcurrency(styles, 2, async (style) => {
+    await runWithConcurrency(styles, previewGenerationConcurrency, async (style) => {
       if (previewRunRef.current !== runId) {
         return;
       }
@@ -347,58 +350,78 @@ export function FitcutStudio() {
 
     try {
       let successCount = 0;
+      const centerAngleIndex = resultAngles.findIndex(
+        (angle) => angle.label === centerAngleLabel,
+      );
+      const centerAngle = resultAngles[centerAngleIndex];
+      let baseReference: File | undefined;
 
-      await runWithConcurrency(Array.from(resultAngles), 2, async (angle) => {
+      if (centerAngle) {
         try {
-          const angleIndex = resultAngles.findIndex(
-            (candidate) => candidate.label === angle.label,
-          );
-
-          if (renderRunRef.current !== runId) {
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append("front", frontPhoto.file);
-          formData.append("side", sidePhoto.file);
-          formData.append("styleId", style.id);
-          formData.append("angleIndex", String(angleIndex));
-
-          const response = await fetch(`${apiBaseUrl}/api/hairstyles/angle/`, {
-            method: "POST",
-            body: formData,
+          const imageUrl = await requestAngleImage({
+            angleIndex: centerAngleIndex,
+            frontPhoto,
+            sidePhoto,
+            styleId: style.id,
           });
-
-          if (!response.ok) {
-            throw new Error(await readApiError(response));
-          }
-
-          const payload = (await response.json()) as {
-            label?: string;
-            imageUrl?: string;
-          };
-
-          if (!payload.imageUrl) {
-            throw new Error("OpenAI did not return an image.");
-          }
-
           successCount += 1;
-          updateRenderedResult(angle.label, {
-            imageUrl: payload.imageUrl,
+          updateRenderedResult(centerAngle.label, {
+            imageUrl,
             isGenerating: false,
             error: undefined,
           });
+          baseReference = await dataUrlToFile(imageUrl, "fitcut-center.jpg");
         } catch (error) {
           console.error(error);
-          updateRenderedResult(angle.label, {
+          updateRenderedResult(centerAngle.label, {
             isGenerating: false,
             error:
               error instanceof Error
                 ? error.message
-                : "상담용 이미지 생성 실패",
+                : "정면 기준 이미지 생성 실패",
           });
         }
-      });
+      }
+
+      const remainingAngles = Array.from(resultAngles)
+        .map((angle, angleIndex) => ({ angle, angleIndex }))
+        .filter(({ angle }) => angle.label !== centerAngleLabel);
+
+      await runWithConcurrency(
+        remainingAngles,
+        angleGenerationConcurrency,
+        async ({ angle, angleIndex }) => {
+          try {
+            if (renderRunRef.current !== runId) {
+              return;
+            }
+
+            const imageUrl = await requestAngleImage({
+              angleIndex,
+              baseReference,
+              frontPhoto,
+              sidePhoto,
+              styleId: style.id,
+            });
+
+            successCount += 1;
+            updateRenderedResult(angle.label, {
+              imageUrl,
+              isGenerating: false,
+              error: undefined,
+            });
+          } catch (error) {
+            console.error(error);
+            updateRenderedResult(angle.label, {
+              isGenerating: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "상담용 이미지 생성 실패",
+            });
+          }
+        },
+      );
 
       if (renderRunRef.current === runId) {
         setStatusMessage(`${successCount}개 상담용 이미지가 생성되었습니다.`);
@@ -411,6 +434,49 @@ export function FitcutStudio() {
         setIsRendering(false);
       }
     }
+  }
+
+  async function requestAngleImage({
+    angleIndex,
+    baseReference,
+    frontPhoto,
+    sidePhoto,
+    styleId,
+  }: {
+    angleIndex: number;
+    baseReference?: File;
+    frontPhoto: UploadedPhoto;
+    sidePhoto: UploadedPhoto;
+    styleId: FitcutStyleId;
+  }) {
+    const formData = new FormData();
+    formData.append("front", frontPhoto.file);
+    formData.append("side", sidePhoto.file);
+    formData.append("styleId", styleId);
+    formData.append("angleIndex", String(angleIndex));
+
+    if (baseReference) {
+      formData.append("base", baseReference);
+    }
+
+    const response = await fetch(`${apiBaseUrl}/api/hairstyles/angle/`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(await readApiError(response));
+    }
+
+    const payload = (await response.json()) as {
+      imageUrl?: string;
+    };
+
+    if (!payload.imageUrl) {
+      throw new Error("OpenAI did not return an image.");
+    }
+
+    return payload.imageUrl;
   }
 
   function updateRenderedResult(
@@ -591,15 +657,18 @@ export function FitcutStudio() {
                       src={result.imageUrl}
                     />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#15130f] text-xs font-semibold text-[#b8aa95]">
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#15130f] px-3 text-center font-semibold text-[#b8aa95]">
                       {result.isGenerating ? (
                         <Loader2
                           aria-hidden="true"
                           className="animate-spin text-[#f3d28a]"
-                          size={20}
+                          size={42}
+                          strokeWidth={2.4}
                         />
                       ) : null}
-                      {result.error ? "생성 실패" : "생성 중"}
+                      <span className="text-base font-bold text-[#fffaf1]">
+                        {result.error ? "생성 실패" : "생성 중"}
+                      </span>
                     </div>
                   )}
                   <div
@@ -747,21 +816,33 @@ function formatFileSize(size: number) {
   return `${(size / 1024 / 1024).toFixed(1)}MB`;
 }
 
+async function dataUrlToFile(dataUrl: string, fileName: string) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+
+  return new File([blob], fileName, {
+    type: blob.type || "image/jpeg",
+  });
+}
+
 async function runWithConcurrency<T>(
   items: T[],
   limit: number,
   handler: (item: T) => Promise<void>,
 ) {
   const queue = [...items];
-  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
-    while (queue.length) {
-      const item = queue.shift();
+  const workers = Array.from(
+    { length: Math.min(limit, queue.length) },
+    async () => {
+      while (queue.length) {
+        const item = queue.shift();
 
-      if (item) {
-        await handler(item);
+        if (item !== undefined) {
+          await handler(item);
+        }
       }
-    }
-  });
+    },
+  );
 
   await Promise.all(workers);
 }
@@ -813,7 +894,7 @@ function StyleCard({
   onSelect: () => void;
   style: DisplayRecommendation;
 }) {
-  const imageUrl = style.imageUrl ?? frontPhoto.url;
+  const imageUrl = style.imageUrl ?? (!liveAiEnabled ? frontPhoto.url : "");
 
   return (
     <button
@@ -826,22 +907,36 @@ function StyleCard({
       type="button"
     >
       <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          alt={`${style.name} 디자인 미리보기`}
-          className={`h-full w-full object-cover opacity-92 ${style.cropClass}`}
-          src={imageUrl}
-        />
+        {imageUrl ? (
+          <img
+            alt={`${style.name} 디자인 미리보기`}
+            className={`h-full w-full object-cover opacity-92 ${style.cropClass}`}
+            src={imageUrl}
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#15130f] px-4 text-center">
+            {style.isGenerating ? (
+              <Loader2
+                aria-hidden="true"
+                className="animate-spin text-[#f3d28a]"
+                size={46}
+                strokeWidth={2.4}
+              />
+            ) : null}
+            <span className="text-lg font-bold text-[#fffaf1]">
+              {style.error ? "생성 실패" : "AI 합성 중"}
+            </span>
+            <span className="text-sm font-semibold text-[#b8aa95]">
+              {style.error ? "다시 업로드 후 재시도" : style.name}
+            </span>
+          </div>
+        )}
         <div
           className={`absolute inset-0 bg-gradient-to-b ${style.accent} via-transparent to-[#0f0e0c]/86`}
         />
         {active && !style.isGenerating && !style.error ? (
           <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-[#f3d28a] text-[#1a1712]">
             <Check aria-hidden="true" size={17} />
-          </span>
-        ) : null}
-        {style.isGenerating ? (
-          <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-[#11100e]/80 text-[#f3d28a]">
-            <Loader2 aria-hidden="true" className="animate-spin" size={17} />
           </span>
         ) : null}
         {style.error ? (

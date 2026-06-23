@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       side,
       source: "both",
       size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "1024x1024",
-      prompt: buildPreviewPrompt(style.prompt),
+      prompt: buildPreviewPrompt(style.prompt, style.previewPrompt),
     });
 
     return NextResponse.json({
@@ -58,18 +58,22 @@ export async function POST(request: Request) {
   }
 }
 
-function buildPreviewPrompt(stylePrompt: string) {
+function buildPreviewPrompt(stylePrompt: string, previewPrompt: string) {
   return `
 Create one realistic AI hairstyle try-on portrait for a men's salon consultation.
 
 Use the uploaded front photo as the main identity reference and the side photo as the head-shape reference.
-Keep the same man: face, skin tone, facial proportions, expression, clothing, camera angle, lighting, and background.
+Keep the same man: face, skin tone, facial proportions, clothing style, black leather jacket, black turtleneck, and premium indoor cafe/salon mood.
 Edit the hair only.
 Replace the visible hairstyle with the requested haircut. Change the hairline, fringe, crown, top volume, side line, texture, and overall silhouette.
 The requested haircut must be clearly visible. Do not keep the original uploaded hairstyle.
+Create a new portrait variation rather than copying the uploaded selfie composition exactly.
 
 Requested haircut:
 ${stylePrompt}
+
+Composition and expression:
+${previewPrompt}
 
 Return a single finished photorealistic portrait. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no accessories.
 `;
