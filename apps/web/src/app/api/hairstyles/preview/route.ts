@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       front,
       side,
       source: "both",
-      size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "768x768",
+      size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "1024x1024",
       prompt: buildPreviewPrompt(style.prompt),
     });
 

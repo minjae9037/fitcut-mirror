@@ -12,7 +12,7 @@ export async function editHairImage({
   front,
   prompt,
   side,
-  size = process.env.OPENAI_IMAGE_SIZE ?? "768x768",
+  size = process.env.OPENAI_IMAGE_SIZE ?? "1024x1024",
   source = "both",
 }: ImageEditInput) {
   if (!process.env.OPENAI_API_KEY) {

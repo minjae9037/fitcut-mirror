@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       front,
       side,
       source: angle.source,
-      size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "768x768",
+      size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",
       prompt: buildAnglePrompt(style.prompt, angle.prompt),
     });
 
