@@ -28,3 +28,17 @@ npm run lint:web
 ```text
 http://localhost:3000
 ```
+
+## Live AI Hair Generation
+
+로컬 또는 서버 런타임에서는 OpenAI 이미지 편집 API로 실제 헤어 합성을 실행할 수 있습니다. `apps/web/.env.local`에 아래 값을 설정한 뒤 개발 서버를 실행합니다.
+
+```bash
+OPENAI_API_KEY=sk-...
+OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_IMAGE_QUALITY=low
+NEXT_PUBLIC_ENABLE_LIVE_AI=true
+NEXT_PUBLIC_GENERATION_API_URL=
+```
+
+GitHub Pages는 정적 호스팅이라 API 키를 안전하게 보관할 서버가 없습니다. 공개 Pages에서는 같은 화면이 mock fallback으로 동작하고, 실제 공개 파일럿은 Vercel/Render/Cloudflare 같은 서버 배포에 위 환경 변수를 넣어 연결합니다.

@@ -11,97 +11,42 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
+import {
+  fitcutStyles,
+  resultAngles,
+  type FitcutStyle,
+  type FitcutStyleId,
+} from "@/lib/fitcut-styles";
 
 type PhotoSlot = "front" | "side";
 
 type UploadedPhoto = {
+  file: File;
   fileName: string;
   url: string;
 };
 
-type StyleRecommendation = {
-  id: string;
-  name: string;
-  reason: string;
-  tags: string[];
-  accent: string;
-  cropClass: string;
+type DisplayRecommendation = FitcutStyle & {
+  imageUrl?: string;
 };
 
-const recommendations: StyleRecommendation[] = [
-  {
-    id: "leaf-cut",
-    name: "리프컷",
-    reason:
-      "앞머리와 옆 라인이 자연스럽게 이어져 얼굴형을 부드럽게 보여주는 스타일입니다.",
-    tags: ["중간 기장", "가르마", "부드러운 인상"],
-    accent: "from-[#f3d28a]/26",
-    cropClass: "scale-110 -translate-y-2",
-  },
-  {
-    id: "ivy-league",
-    name: "아이비리그컷",
-    reason:
-      "짧고 단정해서 면접, 프로필 촬영, 직장인 이미지에 안정적으로 어울립니다.",
-    tags: ["짧은 기장", "깔끔함", "관리 쉬움"],
-    accent: "from-[#a7dcc5]/24",
-    cropClass: "scale-125 -translate-y-5",
-  },
-  {
-    id: "parted",
-    name: "가르마 스타일",
-    reason:
-      "볼륨을 살리면서도 과하지 않아 일상과 미용실 상담 모두에 쓰기 좋습니다.",
-    tags: ["6:4", "볼륨", "데일리"],
-    accent: "from-[#d6b38a]/24",
-    cropClass: "scale-115 translate-x-2 -translate-y-3",
-  },
-  {
-    id: "crop-cut",
-    name: "크롭컷",
-    reason:
-      "이마와 라인을 또렷하게 정리해 선명하고 세련된 인상을 만듭니다.",
-    tags: ["짧은 기장", "선명함", "남성적"],
-    accent: "from-[#d9d2c4]/20",
-    cropClass: "scale-130 -translate-y-7",
-  },
-  {
-    id: "dandy-cut",
-    name: "댄디컷",
-    reason:
-      "과한 변화 없이 단정하고 부드러운 느낌을 주는 안전한 첫 선택지입니다.",
-    tags: ["단정함", "소프트", "첫 시도"],
-    accent: "from-[#f3d28a]/18",
-    cropClass: "scale-108 -translate-y-1",
-  },
-  {
-    id: "shadow-perm",
-    name: "쉐도우펌",
-    reason:
-      "머리 숱과 볼륨감을 살려 전체 실루엣을 풍성하게 보완할 수 있습니다.",
-    tags: ["펌", "볼륨", "입체감"],
-    accent: "from-[#8fb6a6]/20",
-    cropClass: "scale-112 -translate-x-2 -translate-y-2",
-  },
-];
-
-const resultAngles = [
-  { label: "좌상단", source: "front" as const, className: "-rotate-2 scale-110" },
-  { label: "상단", source: "front" as const, className: "scale-125 -translate-y-5" },
-  { label: "우상단", source: "front" as const, className: "rotate-2 scale-110" },
-  { label: "좌측", source: "side" as const, className: "scale-112 -translate-x-3" },
-  { label: "정면", source: "front" as const, className: "scale-105" },
-  { label: "우측", source: "side" as const, className: "scale-112 translate-x-3" },
-  { label: "좌하단", source: "side" as const, className: "-rotate-1 scale-115 translate-y-3" },
-  { label: "후면", source: "side" as const, className: "scale-125 blur-[0.35px]" },
-  { label: "우하단", source: "side" as const, className: "rotate-1 scale-115 translate-y-3" },
-];
+type RenderedResult = {
+  label: string;
+  imageUrl: string;
+  className?: string;
+};
 
 const analysisLines = [
   "정면과 측면 사진을 함께 기준으로 봤어요.",
   "첫 테스트에서는 실패 리스크가 낮은 남성 스타일 위주로 추천합니다.",
   "마음에 드는 디자인을 누르면 미용사 상담용 9장 구성이 바로 생성됩니다.",
 ];
+
+const liveAiEnabled = process.env.NEXT_PUBLIC_ENABLE_LIVE_AI === "true";
+const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
+  /\/$/,
+  "",
+);
 
 export function FitcutStudio() {
   const [photos, setPhotos] = useState<Record<PhotoSlot, UploadedPhoto | null>>({
@@ -110,7 +55,15 @@ export function FitcutStudio() {
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisReady, setAnalysisReady] = useState(false);
-  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
+  const [recommendations, setRecommendations] =
+    useState<DisplayRecommendation[]>(fitcutStyles);
+  const [analysisNotes, setAnalysisNotes] = useState(analysisLines);
+  const [selectedStyleId, setSelectedStyleId] = useState<FitcutStyleId | null>(
+    null,
+  );
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderedResults, setRenderedResults] = useState<RenderedResult[]>([]);
+  const [statusMessage, setStatusMessage] = useState("");
   const frontInputRef = useRef<HTMLInputElement>(null);
   const sideInputRef = useRef<HTMLInputElement>(null);
   const createdUrlsRef = useRef<Set<string>>(new Set());
@@ -120,7 +73,7 @@ export function FitcutStudio() {
   const sidePhoto = photos.side;
   const selectedStyle = useMemo(
     () => recommendations.find((style) => style.id === selectedStyleId),
-    [selectedStyleId],
+    [recommendations, selectedStyleId],
   );
 
   useEffect(() => {
@@ -153,12 +106,14 @@ export function FitcutStudio() {
     setIsAnalyzing(false);
     setAnalysisReady(false);
     setSelectedStyleId(null);
+    setRenderedResults([]);
+    setStatusMessage("");
 
     const otherPhoto = slot === "front" ? photos.side : photos.front;
+    const nextUrl = URL.createObjectURL(file);
 
     setPhotos((current) => {
       const previous = current[slot];
-      const nextUrl = URL.createObjectURL(file);
 
       if (previous?.url) {
         URL.revokeObjectURL(previous.url);
@@ -170,6 +125,7 @@ export function FitcutStudio() {
       return {
         ...current,
         [slot]: {
+          file,
           fileName: file.name,
           url: nextUrl,
         },
@@ -177,12 +133,128 @@ export function FitcutStudio() {
     });
 
     if (otherPhoto) {
-      setIsAnalyzing(true);
+      const nextPhotos = {
+        ...photos,
+        [slot]: {
+          file,
+          fileName: file.name,
+          url: nextUrl,
+        },
+      } as Record<PhotoSlot, UploadedPhoto>;
 
+      void generateRecommendations(nextPhotos);
+    }
+  }
+
+  async function generateRecommendations(
+    currentPhotos: Record<PhotoSlot, UploadedPhoto>,
+  ) {
+    setIsAnalyzing(true);
+    setAnalysisReady(false);
+    setRecommendations(fitcutStyles);
+    setAnalysisNotes(analysisLines);
+    setStatusMessage(
+      liveAiEnabled
+        ? "실제 AI 이미지 추천을 생성하고 있습니다. 비용과 시간이 발생할 수 있습니다."
+        : "현재 공개 페이지는 API 키가 없어 mock 추천으로 표시됩니다.",
+    );
+
+    if (!liveAiEnabled) {
       analysisTimerRef.current = window.setTimeout(() => {
         setIsAnalyzing(false);
         setAnalysisReady(true);
       }, 850);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("front", currentPhotos.front.file);
+      formData.append("side", currentPhotos.side.file);
+
+      const response = await fetch(`${apiBaseUrl}/api/hairstyles/recommend`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const payload = (await response.json()) as {
+        notes?: string[];
+        recommendations?: DisplayRecommendation[];
+      };
+
+      setRecommendations(
+        payload.recommendations?.length
+          ? payload.recommendations
+          : fitcutStyles,
+      );
+      setAnalysisNotes(payload.notes?.length ? payload.notes : analysisLines);
+      setStatusMessage("실제 AI 추천 이미지가 생성되었습니다.");
+    } catch (error) {
+      console.error(error);
+      setRecommendations(fitcutStyles);
+      setAnalysisNotes(analysisLines);
+      setStatusMessage(
+        "실제 AI 생성에 실패해 mock 추천으로 표시합니다. 서버 API 키와 배포 설정을 확인하세요.",
+      );
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisReady(true);
+    }
+  }
+
+  async function selectStyle(style: DisplayRecommendation) {
+    if (!frontPhoto || !sidePhoto) {
+      return;
+    }
+
+    setSelectedStyleId(style.id);
+    setRenderedResults([]);
+    setIsRendering(true);
+
+    if (!liveAiEnabled) {
+      window.setTimeout(() => {
+        setRenderedResults(createMockResults(style, frontPhoto, sidePhoto));
+        setIsRendering(false);
+      }, 450);
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("front", frontPhoto.file);
+      formData.append("side", sidePhoto.file);
+      formData.append("styleId", style.id);
+
+      const response = await fetch(`${apiBaseUrl}/api/hairstyles/render`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const payload = (await response.json()) as {
+        results?: { label: string; imageUrl: string }[];
+      };
+
+      setRenderedResults(
+        payload.results?.length
+          ? payload.results
+          : createMockResults(style, frontPhoto, sidePhoto),
+      );
+    } catch (error) {
+      console.error(error);
+      setStatusMessage(
+        "9장 실제 생성에 실패해 mock 결과로 표시합니다. 서버 로그를 확인하세요.",
+      );
+      setRenderedResults(createMockResults(style, frontPhoto, sidePhoto));
+    } finally {
+      setIsRendering(false);
     }
   }
 
@@ -203,6 +275,11 @@ export function FitcutStudio() {
     setIsAnalyzing(false);
     setAnalysisReady(false);
     setSelectedStyleId(null);
+    setRecommendations(fitcutStyles);
+    setAnalysisNotes(analysisLines);
+    setRenderedResults([]);
+    setIsRendering(false);
+    setStatusMessage("");
 
     if (frontInputRef.current) {
       frontInputRef.current.value = "";
@@ -267,8 +344,16 @@ export function FitcutStudio() {
       {isAnalyzing ? (
         <div className="mt-5 flex items-center gap-3 rounded-md border border-[#c9a96a]/35 bg-[#30271a]/80 p-4 text-sm font-semibold text-[#f3d28a]">
           <Loader2 aria-hidden="true" className="animate-spin" size={18} />
-          두 장의 사진을 기준으로 어울리는 헤어 디자인을 추천하는 중...
+          {liveAiEnabled
+            ? "업로드한 얼굴에 실제 헤어스타일을 합성하는 중..."
+            : "두 장의 사진을 기준으로 어울리는 헤어 디자인을 추천하는 중..."}
         </div>
+      ) : null}
+
+      {statusMessage ? (
+        <p className="mt-4 rounded-md border border-white/10 bg-[#0f0e0c]/72 px-3 py-2 text-sm text-[#b8aa95]">
+          {statusMessage}
+        </p>
       ) : null}
 
       {analysisReady && frontPhoto && sidePhoto ? (
@@ -281,7 +366,7 @@ export function FitcutStudio() {
               </h2>
             </div>
             <div className="grid gap-2 text-sm leading-6 text-[#d8cbb8]">
-              {analysisLines.map((line) => (
+              {analysisNotes.map((line) => (
                 <p key={line}>{line}</p>
               ))}
             </div>
@@ -293,7 +378,7 @@ export function FitcutStudio() {
                 active={style.id === selectedStyleId}
                 frontPhoto={frontPhoto}
                 key={style.id}
-                onSelect={() => setSelectedStyleId(style.id)}
+                onSelect={() => selectStyle(style)}
                 style={style}
               />
             ))}
@@ -308,39 +393,41 @@ export function FitcutStudio() {
               {selectedStyle.name} 상담용 9장
             </h3>
             <p className="mt-1 text-sm text-[#b8aa95]">
-              현재는 GitHub Pages 테스트용 mock 결과입니다. 실제 헤어 합성은
-              이미지 생성 API 연결 단계에서 같은 위치에 붙입니다.
+              {liveAiEnabled
+                ? "실제 이미지 API로 생성한 상담용 결과입니다."
+                : "현재 공개 페이지는 API 키가 없어 mock 결과로 표시됩니다."}
             </p>
           </div>
+          {isRendering ? (
+            <div className="flex items-center gap-3 rounded-md border border-[#c9a96a]/35 bg-[#30271a]/80 p-4 text-sm font-semibold text-[#f3d28a]">
+              <Loader2 aria-hidden="true" className="animate-spin" size={18} />
+              {selectedStyle.name} 9장 결과를 생성하는 중...
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {resultAngles.map((angle) => {
-              const sourcePhoto =
-                angle.source === "front" ? frontPhoto : sidePhoto;
-
-              return (
-                <div
-                  className="overflow-hidden rounded-md border border-[#2b281f] bg-[#0f0e0c]"
-                  key={angle.label}
-                >
-                  <div className="relative aspect-square overflow-hidden">
-                    <img
-                      alt={`${selectedStyle.name} ${angle.label} 결과`}
-                      className={`h-full w-full object-cover opacity-92 ${angle.className} ${selectedStyle.cropClass}`}
-                      src={sourcePhoto.url}
-                    />
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-b ${selectedStyle.accent} via-transparent to-[#0f0e0c]/80`}
-                    />
-                    <div className="absolute left-3 top-3 rounded-md bg-[#11100e]/78 px-2 py-1 text-xs font-semibold text-[#f3d28a]">
-                      {angle.label}
-                    </div>
-                    <div className="absolute bottom-3 left-3 right-3 text-sm font-semibold text-[#fffaf1]">
-                      {selectedStyle.name}
-                    </div>
+            {renderedResults.map((result) => (
+              <div
+                className="overflow-hidden rounded-md border border-[#2b281f] bg-[#0f0e0c]"
+                key={result.label}
+              >
+                <div className="relative aspect-square overflow-hidden">
+                  <img
+                    alt={`${selectedStyle.name} ${result.label} 결과`}
+                    className={`h-full w-full object-cover opacity-92 ${result.className ?? ""}`}
+                    src={result.imageUrl}
+                  />
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-b ${selectedStyle.accent} via-transparent to-[#0f0e0c]/80`}
+                  />
+                  <div className="absolute left-3 top-3 rounded-md bg-[#11100e]/78 px-2 py-1 text-xs font-semibold text-[#f3d28a]">
+                    {result.label}
+                  </div>
+                  <div className="absolute bottom-3 left-3 right-3 text-sm font-semibold text-[#fffaf1]">
+                    {selectedStyle.name}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
@@ -413,8 +500,10 @@ function StyleCard({
   active: boolean;
   frontPhoto: UploadedPhoto;
   onSelect: () => void;
-  style: StyleRecommendation;
+  style: DisplayRecommendation;
 }) {
+  const imageUrl = style.imageUrl ?? frontPhoto.url;
+
   return (
     <button
       className={`overflow-hidden rounded-md border text-left transition ${
@@ -429,7 +518,7 @@ function StyleCard({
         <img
           alt={`${style.name} 디자인 미리보기`}
           className={`h-full w-full object-cover opacity-92 ${style.cropClass}`}
-          src={frontPhoto.url}
+          src={imageUrl}
         />
         <div
           className={`absolute inset-0 bg-gradient-to-b ${style.accent} via-transparent to-[#0f0e0c]/86`}
@@ -458,4 +547,20 @@ function StyleCard({
       </div>
     </button>
   );
+}
+
+function createMockResults(
+  style: DisplayRecommendation,
+  frontPhoto: UploadedPhoto,
+  sidePhoto: UploadedPhoto,
+) {
+  return resultAngles.map((angle) => {
+    const sourcePhoto = angle.source === "front" ? frontPhoto : sidePhoto;
+
+    return {
+      label: angle.label,
+      imageUrl: sourcePhoto.url,
+      className: `${angle.className} ${style.cropClass}`,
+    };
+  });
 }

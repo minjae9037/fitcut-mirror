@@ -5,13 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:github": "next build",
+    "build:github": "cross-env STATIC_EXPORT=true next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
+    "openai": "^6.44.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -20,6 +21,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

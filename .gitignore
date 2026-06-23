@@ -1,3 +1,12 @@
+# Dependencies and build output
+node_modules/
+.next/
+out/
+
+# Local environment
+.env
+.env*.local
+
 # Local planning documents
 HairVerse_*.md
 
