@@ -35,7 +35,6 @@ export async function editHairImage({
     output_compression: normalizeCompression(
       process.env.OPENAI_IMAGE_COMPRESSION,
     ),
-    input_fidelity: "high",
     background: "opaque",
   });
 

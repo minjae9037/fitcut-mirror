@@ -69,13 +69,15 @@ function buildRecommendationPrompt(stylePrompt: string) {
 You are creating a realistic hairstyle try-on preview for a men's salon consultation.
 
 Use the uploaded front and side photos as identity and head-shape references.
-Preserve the person's facial identity, skin tone, expression, face shape, clothing, lighting, camera feel, and background as much as possible.
-Change only the hairstyle.
+Create a NEW photorealistic image of the same man with the requested haircut applied.
+Preserve the person's facial identity, skin tone, expression, face shape, clothing, lighting, camera feel, and background.
+Replace the entire visible hairstyle: hairline, fringe, crown, top volume, side line, texture, and silhouette.
+The final image must visibly show the requested hairstyle and must not keep the original uploaded hairstyle.
 
 Hairstyle request:
 ${stylePrompt}
 
 Output a clean photorealistic front-facing consultation preview.
-No text, no watermark, no extra people, no accessories added.
+Single finished portrait only. No before-after comparison, no split screen, no text, no watermark, no extra people, no accessories added.
 `;
 }

@@ -24,7 +24,7 @@ export const fitcutStyles: FitcutStyle[] = [
       "앞머리와 옆 라인이 자연스럽게 이어져 얼굴형을 부드럽게 보여주는 스타일입니다.",
     tags: ["중간 기장", "가르마", "부드러운 인상"],
     prompt:
-      "Apply a modern Korean men's leaf cut. Medium length, soft natural fringe, subtle side volume, refined salon finish.",
+      "Modern Korean men's leaf cut: medium-length layered top, soft curtain-like fringe flowing to both sides, natural C-shaped movement around the temples, gentle side volume, clean neckline, refined salon finish.",
     accent: "from-[#f3d28a]/26",
     cropClass: "scale-110 -translate-y-2",
   },
@@ -35,7 +35,7 @@ export const fitcutStyles: FitcutStyle[] = [
       "짧고 단정해서 면접, 프로필 촬영, 직장인 이미지에 안정적으로 어울립니다.",
     tags: ["짧은 기장", "깔끔함", "관리 쉬움"],
     prompt:
-      "Apply a neat modern Ivy League haircut for men. Short clean sides, tidy top, professional and polished.",
+      "Modern Ivy League haircut for men: short clean tapered sides, neatly trimmed sideburns, tidy top combed slightly upward and to one side, crisp hairline, professional polished finish.",
     accent: "from-[#a7dcc5]/24",
     cropClass: "scale-125 -translate-y-5",
   },
@@ -46,7 +46,7 @@ export const fitcutStyles: FitcutStyle[] = [
       "볼륨을 살리면서도 과하지 않아 일상과 미용실 상담 모두에 쓰기 좋습니다.",
     tags: ["6:4", "볼륨", "데일리"],
     prompt:
-      "Apply a Korean 6:4 parted hairstyle. Natural volume at the front, clean side shape, everyday salon styling.",
+      "Korean 6:4 parted hairstyle: clear 6-to-4 side part, lifted front volume, smooth side flow, softly styled fringe away from the forehead, clean side shape, everyday premium salon styling.",
     accent: "from-[#d6b38a]/24",
     cropClass: "scale-115 translate-x-2 -translate-y-3",
   },
@@ -57,7 +57,7 @@ export const fitcutStyles: FitcutStyle[] = [
       "이마와 라인을 또렷하게 정리해 선명하고 세련된 인상을 만듭니다.",
     tags: ["짧은 기장", "선명함", "남성적"],
     prompt:
-      "Apply a clean men's crop cut. Short textured top, controlled fringe, crisp outline, sharp modern look.",
+      "Clean men's crop cut: short textured top, controlled blunt fringe above the forehead, tight tapered sides, crisp outline around the temples, sharp modern masculine look.",
     accent: "from-[#d9d2c4]/20",
     cropClass: "scale-130 -translate-y-7",
   },
@@ -68,7 +68,7 @@ export const fitcutStyles: FitcutStyle[] = [
       "과한 변화 없이 단정하고 부드러운 느낌을 주는 안전한 첫 선택지입니다.",
     tags: ["단정함", "소프트", "첫 시도"],
     prompt:
-      "Apply a Korean dandy cut. Clean and soft silhouette, natural fringe, conservative but stylish salon result.",
+      "Korean dandy cut: neat soft silhouette, natural rounded fringe, moderate top volume, tidy side line around the ears, conservative but stylish first-try salon result.",
     accent: "from-[#f3d28a]/18",
     cropClass: "scale-108 -translate-y-1",
   },
@@ -79,7 +79,7 @@ export const fitcutStyles: FitcutStyle[] = [
       "머리 숱과 볼륨감을 살려 전체 실루엣을 풍성하게 보완할 수 있습니다.",
     tags: ["펌", "볼륨", "입체감"],
     prompt:
-      "Apply a Korean shadow perm. Soft waves, natural volume, textured movement while keeping the face visible.",
+      "Korean shadow perm: soft loose waves, airy top volume, textured movement through the fringe and crown, fuller silhouette without covering the eyes, natural salon perm finish.",
     accent: "from-[#8fb6a6]/20",
     cropClass: "scale-112 -translate-x-2 -translate-y-2",
   },

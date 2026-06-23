@@ -7,6 +7,9 @@ out/
 .env
 .env*.local
 
+# Local test images
+samples/
+
 # Local planning documents
 HairVerse_*.md
 

@@ -72,7 +72,8 @@ Create a photorealistic men's salon consultation reference image.
 
 Use the uploaded photo as the identity reference.
 Preserve the same person: facial identity, face shape, skin tone, expression, and overall realistic appearance.
-Change only the hairstyle.
+Replace the entire visible hairstyle with the requested style: hairline, fringe, crown, top volume, side line, texture, and silhouette.
+The final image must visibly show the requested hairstyle and must not keep the original uploaded hairstyle.
 Keep the image suitable for a hair stylist to understand the cut and styling direction.
 
 Hairstyle:
@@ -81,6 +82,6 @@ ${stylePrompt}
 View angle:
 ${anglePrompt}
 
-No text, no watermark, no extra people, no hats, no sunglasses.
+Single finished portrait only. No before-after comparison, no split screen, no text, no watermark, no extra people, no hats, no sunglasses.
 `;
 }
