@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --background: #11100e;
+  --foreground: #f8f1e5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    "Pretendard",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+}
+
+button,
+a,
+textarea,
+input {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: #f3d28a;
+  color: #11100e;
+}
