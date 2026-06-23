@@ -29,6 +29,12 @@ npm run lint:web
 http://localhost:3000
 ```
 
+Vercel 서버 배포:
+
+```text
+https://fitcut-mirror.vercel.app
+```
+
 ## Live AI Hair Generation
 
 로컬 또는 서버 런타임에서는 OpenAI 이미지 편집 API로 실제 헤어 합성을 실행할 수 있습니다. `apps/web/.env.local`에 아래 값을 설정한 뒤 개발 서버를 실행합니다.
