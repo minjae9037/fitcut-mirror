@@ -32,6 +32,7 @@ type DisplayRecommendation = FitcutStyle & {
   imageUrl?: string;
   isGenerating?: boolean;
   error?: string;
+  previewIndex?: number;
 };
 
 type RenderedResult = {
@@ -372,8 +373,9 @@ export function FitcutStudio() {
         preferredStyleIds,
         selectedHairColor,
       );
-      const nextRecommendations = recommendationSet.map((style) => ({
+      const nextRecommendations = recommendationSet.map((style, previewIndex) => ({
           ...style,
+          previewIndex,
           isGenerating: true,
           imageUrl: undefined,
           error: undefined,
@@ -555,7 +557,7 @@ export function FitcutStudio() {
     );
     setIsRendering(true);
     setStatusMessage(
-      `${style.name} 선택 이미지를 정면 기준으로 고정하고 나머지 각도를 준비하는 중입니다.`,
+      `${style.name} 선택 이미지의 방향을 확인하고 상담용 9장 구성을 준비하는 중입니다.`,
     );
 
     if (!liveAiEnabled) {
@@ -579,33 +581,95 @@ export function FitcutStudio() {
         (angle) => angle.label === centerAngleLabel,
       );
       const centerAngle = resultAngles[centerAngleIndex];
+      const selectedAngleIndex = getConsultationSlotIndex(style.previewIndex);
+      const selectedAngle = resultAngles[selectedAngleIndex] ?? centerAngle;
       let baseReference: File | undefined;
+      let referenceForRemaining: File | undefined;
+      const completedAngleIndexes = new Set<number>();
+      const failedAngles: Array<{
+        angle: (typeof resultAngles)[number];
+        angleIndex: number;
+      }> = [];
 
-      if (centerAngle && selectedPreviewUrl) {
+      if (selectedAngle && selectedPreviewUrl) {
         baseReference = await dataUrlToFile(
           selectedPreviewUrl,
           "fitcut-selected-preview.jpg",
         );
+        referenceForRemaining = baseReference;
 
         if (renderRunRef.current !== runId) {
           return;
         }
 
         successCount = 1;
-        updateRenderedResult(centerAngle.label, {
+        completedAngleIndexes.add(selectedAngleIndex);
+        updateRenderedResult(selectedAngle.label, {
           imageUrl: selectedPreviewUrl,
           isGenerating: false,
           error: undefined,
         });
         setStatusMessage(
-          `${style.name} 선택 이미지를 정면 기준으로 사용합니다. 나머지 8장을 병렬 생성 중입니다.`,
+          selectedAngle.label === centerAngleLabel
+            ? `${style.name} 선택 이미지를 정면 슬롯에 배치했습니다. 나머지 8장을 병렬 생성 중입니다.`
+            : `${style.name} 선택 이미지를 ${selectedAngle.label} 슬롯에 배치하고, 정면 기준 이미지를 먼저 생성합니다.`,
         );
+      }
+
+      if (
+        centerAngle &&
+        selectedPreviewUrl &&
+        selectedAngle?.label !== centerAngleLabel
+      ) {
+        try {
+          updateRenderedResult(centerAngle.label, {
+            isGenerating: true,
+            error: undefined,
+          });
+
+          const centerImageUrl = await requestAngleImage({
+            angleIndex: centerAngleIndex,
+            baseReference,
+            photos: currentReadyPhotos,
+            style,
+          });
+
+          if (renderRunRef.current !== runId) {
+            return;
+          }
+
+          successCount += 1;
+          completedAngleIndexes.add(centerAngleIndex);
+          updateRenderedResult(centerAngle.label, {
+            imageUrl: centerImageUrl,
+            isGenerating: false,
+            error: undefined,
+          });
+          referenceForRemaining = await dataUrlToFile(
+            centerImageUrl,
+            "fitcut-generated-front-reference.jpg",
+          );
+          setStatusMessage(
+            `${style.name} 정면 기준 이미지를 만들었습니다. 나머지 7장을 병렬 생성 중입니다.`,
+          );
+        } catch (error) {
+          console.error(error);
+          updateRenderedResult(centerAngle.label, {
+            isGenerating: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "정면 기준 이미지 생성 실패",
+          });
+          setStatusMessage(
+            `${style.name} 정면 기준 이미지가 지연되어, 선택 이미지를 기준으로 나머지 각도를 먼저 생성합니다.`,
+          );
+        }
       }
 
       const remainingAngles = Array.from(resultAngles)
         .map((angle, angleIndex) => ({ angle, angleIndex }))
-        .filter(({ angle }) => angle.label !== centerAngleLabel);
-      const failedAngles: typeof remainingAngles = [];
+        .filter(({ angleIndex }) => !completedAngleIndexes.has(angleIndex));
 
       await runWithConcurrency(
         remainingAngles,
@@ -618,7 +682,7 @@ export function FitcutStudio() {
 
             const imageUrl = await requestAngleImage({
               angleIndex,
-              baseReference,
+              baseReference: referenceForRemaining,
               photos: currentReadyPhotos,
               style,
             });
@@ -665,7 +729,7 @@ export function FitcutStudio() {
 
             const imageUrl = await requestAngleImage({
               angleIndex,
-              baseReference,
+              baseReference: referenceForRemaining,
               photos: currentReadyPhotos,
               style,
             });
@@ -960,7 +1024,7 @@ export function FitcutStudio() {
               {selectedStyle.name} 상담용 9장
             </h3>
             <p className="mt-1 text-sm text-[#b8aa95]">
-              선택한 이미지를 정면 기준으로 고정하고, 얼굴과 옷 톤을 유지하며 나머지 각도를 생성합니다.
+              선택한 추천 이미지의 방향을 먼저 배치하고, 얼굴과 옷 톤을 유지하며 나머지 각도를 생성합니다.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -1646,7 +1710,7 @@ function SelectedPreviewPanel({
           {isRendering ? "상담용 9장 생성 중" : "이 스타일로 상담용 9장 생성"}
         </button>
         <p className="mt-3 text-xs leading-5 text-[#a99b87]">
-          선택한 사진을 정면 기준으로 그대로 쓰고, 그 기준을 받아 나머지 8개 각도를 병렬로 생성합니다.
+          선택한 추천 이미지의 방향을 먼저 배치하고, 정면 기준을 만든 뒤 나머지 각도를 생성합니다.
         </p>
       </div>
     </section>
@@ -2000,4 +2064,22 @@ function createMockResults(
       className: `${angle.className} ${style.cropClass}`,
     };
   });
+}
+
+function getConsultationSlotIndex(previewIndex: number | undefined) {
+  const centerIndex = resultAngles.findIndex(
+    (angle) => angle.label === centerAngleLabel,
+  );
+
+  if (typeof previewIndex !== "number" || !Number.isFinite(previewIndex)) {
+    return centerIndex >= 0 ? centerIndex : 0;
+  }
+
+  const normalizedIndex = Math.trunc(previewIndex);
+
+  if (normalizedIndex < 0 || normalizedIndex >= resultAngles.length) {
+    return centerIndex >= 0 ? centerIndex : 0;
+  }
+
+  return normalizedIndex;
 }
