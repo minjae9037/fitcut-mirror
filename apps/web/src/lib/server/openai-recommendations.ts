@@ -21,11 +21,13 @@ export async function recommendHairStyles({
   leftSide,
   rightSide,
   side,
+  styleMemo,
 }: {
   front: File;
   leftSide?: File;
   rightSide?: File;
   side: File;
+  styleMemo?: string;
 }) {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured.");
@@ -56,7 +58,7 @@ export async function recommendHairStyles({
         content: [
           {
             type: "text",
-            text: buildRecommendationPrompt(sideUrls.length + 1),
+            text: buildRecommendationPrompt(sideUrls.length + 1, styleMemo),
           },
           {
             type: "image_url",
@@ -144,7 +146,7 @@ export async function recommendHairStyles({
   };
 }
 
-function buildRecommendationPrompt(referenceCount: number) {
+function buildRecommendationPrompt(referenceCount: number, styleMemo = "") {
   const catalog = styleCatalog
     .map(
       (style) =>
@@ -156,8 +158,10 @@ function buildRecommendationPrompt(referenceCount: number) {
 Analyze the uploaded reference photos together. The first image is the primary front or best identity reference. Additional images are side references. More references mean better head-shape and face-angle understanding.
 
 Reference image count: ${referenceCount}.
+Customer request memo: ${styleMemo.trim() || "No additional memo."}
 
 Pick exactly 9 unique hairstyles from this catalog. Do not always choose the first nine. Choose based on visible face shape, head shape, current hair volume, side silhouette, forehead exposure, and whether the result is realistic for a first salon pilot test.
+Reflect the customer request memo when it is compatible with the face/head references, but do not choose styles that look unrealistic or technically misleading for a salon consultation.
 
 For each pick:
 - Use only an id from the catalog.

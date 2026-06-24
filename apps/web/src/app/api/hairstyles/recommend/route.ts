@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     const side = formData.get("side");
     const leftSide = formData.get("leftSide");
     const rightSide = formData.get("rightSide");
+    const styleMemo = sanitizeStyleMemo(formData.get("styleMemo"));
 
     if (!(front instanceof File) || !(side instanceof File)) {
       return NextResponse.json(
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
         leftSide: leftSide instanceof File ? leftSide : undefined,
         rightSide: rightSide instanceof File ? rightSide : undefined,
         side,
+        styleMemo,
       });
 
       return NextResponse.json({
@@ -80,4 +82,12 @@ function hasFormContentType(request: Request) {
     contentType.includes("multipart/form-data") ||
     contentType.includes("application/x-www-form-urlencoded")
   );
+}
+
+function sanitizeStyleMemo(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.replace(/[<>]/g, "").trim().slice(0, 240);
 }

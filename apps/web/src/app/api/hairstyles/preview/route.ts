@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getHairColorById } from "@/lib/fitcut-colors";
 import { getStyleById } from "@/lib/fitcut-styles";
 import { editHairImage } from "@/lib/server/openai-image";
 
@@ -20,18 +21,12 @@ export async function POST(request: Request) {
     const leftSide = formData.get("leftSide");
     const rightSide = formData.get("rightSide");
     const styleId = getString(formData.get("styleId"));
+    const hairColorId = getString(formData.get("hairColorId"));
+    const styleMemo = sanitizeStyleMemo(formData.get("styleMemo"));
     const previewIndex = Number(formData.get("previewIndex") ?? 0);
-    const fallbackStyle = getStyleById(styleId);
-    const styleName =
-      getString(formData.get("styleName")) ||
-      fallbackStyle?.name ||
-      "추천 스타일";
-    const stylePrompt =
-      getString(formData.get("stylePrompt")) || fallbackStyle?.prompt;
-    const previewPrompt =
-      getString(formData.get("previewPrompt")) ||
-      fallbackStyle?.previewPrompt ||
-      "Create a fresh front three-quarter premium salon portrait with a natural expression and clear hairstyle visibility.";
+    const style = getStyleById(styleId);
+    const hairColor =
+      getHairColorById(hairColorId) ?? getHairColorById("natural-black");
 
     if (!(front instanceof File) || !(side instanceof File)) {
       return NextResponse.json(
@@ -40,12 +35,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!stylePrompt) {
+    if (!style || !hairColor) {
       return NextResponse.json(
-        { error: "헤어스타일 프롬프트가 필요합니다." },
+        { error: "지원하지 않는 헤어스타일 또는 헤어 컬러입니다." },
         { status: 400 },
       );
     }
+
+    const stylePrompt = buildStylePrompt(style.prompt, hairColor.prompt, styleMemo);
 
     const imageUrl = await editHairImage({
       front,
@@ -55,9 +52,9 @@ export async function POST(request: Request) {
       source: "both",
       size: process.env.OPENAI_PREVIEW_IMAGE_SIZE ?? "1024x1024",
       prompt: buildPreviewPrompt(
-        styleName,
+        style.name,
         stylePrompt,
-        previewPrompt,
+        style.previewPrompt,
         previewIndex,
       ),
     });
@@ -66,7 +63,7 @@ export async function POST(request: Request) {
       mode: "live",
       style: {
         id: styleId,
-        name: styleName,
+        name: style.name,
       },
       imageUrl,
     });
@@ -97,7 +94,7 @@ function buildPreviewPrompt(
 Create one realistic AI hairstyle try-on portrait for a men's salon consultation.
 
 Use the uploaded front or primary photo as the main identity reference, and use the side reference photos for head shape, side silhouette, and face angle.
-Keep the same man: face, skin tone, facial proportions, clothing style, black leather jacket, black turtleneck, and premium indoor cafe/salon mood.
+Keep the same man: face, skin tone, facial proportions, actual clothing style from the uploaded photos, and a realistic indoor salon consultation mood.
 Maintain the exact left-right orientation from the uploaded front or primary photo. Do not mirror, invert, or horizontally flip the face, hair part, facial asymmetry, jacket zipper, hand position, or background landmarks.
 Edit the hair only.
 Replace the visible hairstyle with the requested haircut. Change the hairline, fringe, crown, top volume, side line, texture, and overall silhouette.
@@ -137,6 +134,28 @@ function getPreviewAnglePrompt(previewIndex: number) {
 
 function getString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function sanitizeStyleMemo(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.replace(/[<>]/g, "").trim().slice(0, 240);
+}
+
+function buildStylePrompt(
+  stylePrompt: string,
+  hairColorPrompt: string,
+  styleMemo: string,
+) {
+  return [
+    stylePrompt,
+    `Hair color instruction: ${hairColorPrompt}`,
+    styleMemo ? `Customer request memo: ${styleMemo}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function hasFormContentType(request: Request) {

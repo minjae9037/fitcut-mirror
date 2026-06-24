@@ -5,6 +5,8 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
+  Copy,
+  Download,
   ImagePlus,
   Info,
   Loader2,
@@ -12,6 +14,10 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
+import {
+  hairColorChoices,
+  type HairColorChoice,
+} from "@/lib/fitcut-colors";
 import {
   fitcutStyles,
   resultAngles,
@@ -43,6 +49,17 @@ type RenderedResult = {
   error?: string;
 };
 
+type PilotFeedback = {
+  resemblanceScore: string;
+  styleScore: string;
+  salonShareIntent: string;
+  paymentIntent: string;
+  willingnessToPay: string;
+  awkwardParts: string;
+};
+
+type PilotFeedbackField = keyof PilotFeedback;
+
 const analysisLines = [
   "내 사진을 바탕으로 어울리는 헤어스타일을 정교하게 추천합니다.",
   "Choose a look, preview it on your face, and bring a clearer reference to your stylist.",
@@ -71,13 +88,6 @@ type StyleLengthGroup = {
   styleIds: string[];
 };
 
-type HairColorChoice = {
-  id: string;
-  name: string;
-  prompt: string;
-  swatch: string;
-};
-
 const styleLengthGroups: StyleLengthGroup[] = [
   {
     label: "장발",
@@ -95,7 +105,7 @@ const styleLengthGroups: StyleLengthGroup[] = [
     ],
   },
   {
-    label: "단발",
+    label: "짧은 머리",
     styleIds: [
       "ivy-league",
       "crop-cut",
@@ -111,72 +121,6 @@ const styleLengthGroups: StyleLengthGroup[] = [
   },
 ];
 
-const hairColorChoices: HairColorChoice[] = [
-  {
-    id: "natural-black",
-    name: "자연 흑발",
-    prompt:
-      "Keep a natural Korean black hair color with subtle realistic highlights.",
-    swatch: "#161412",
-  },
-  {
-    id: "dark-brown",
-    name: "다크 브라운",
-    prompt: "Use a deep dark brown hair color, natural and salon-polished.",
-    swatch: "#3a241a",
-  },
-  {
-    id: "choco-brown",
-    name: "초코 브라운",
-    prompt: "Use a warm chocolate brown hair color with soft shine.",
-    swatch: "#5a3828",
-  },
-  {
-    id: "ash-brown",
-    name: "애쉬 브라운",
-    prompt: "Use a muted ash brown hair color with cool salon tones.",
-    swatch: "#786f60",
-  },
-  {
-    id: "ash-gray",
-    name: "애쉬 그레이",
-    prompt:
-      "Use an ash gray hair color, cool smoky gray-brown, realistic and not silver-white.",
-    swatch: "#9b9a90",
-  },
-  {
-    id: "khaki-brown",
-    name: "카키 브라운",
-    prompt: "Use a subtle khaki brown hair color with olive undertones.",
-    swatch: "#6f6a43",
-  },
-  {
-    id: "blue-black",
-    name: "블루 블랙",
-    prompt: "Use a blue-black hair color with a restrained cool blue sheen.",
-    swatch: "#111827",
-  },
-  {
-    id: "milk-tea",
-    name: "밀크티 브라운",
-    prompt: "Use a soft milk-tea beige brown hair color, warm and premium.",
-    swatch: "#b08b62",
-  },
-  {
-    id: "copper-brown",
-    name: "카퍼 브라운",
-    prompt: "Use a tasteful copper brown hair color with warm red-brown notes.",
-    swatch: "#9d4f32",
-  },
-  {
-    id: "platinum-blond",
-    name: "플래티넘 블론드",
-    prompt:
-      "Use a refined platinum blond hair color, salon-bleached but realistic.",
-    swatch: "#d8c9a2",
-  },
-];
-
 const liveAiEnabled = process.env.NEXT_PUBLIC_ENABLE_LIVE_AI === "true";
 const apiBaseUrl = (process.env.NEXT_PUBLIC_GENERATION_API_URL ?? "").replace(
   /\/$/,
@@ -188,6 +132,15 @@ const previewGenerationConcurrency = 3;
 const angleGenerationConcurrency = 2;
 const imageRequestRetryCount = 3;
 const centerAngleLabel = "정면";
+const pilotFeedbackStorageKey = "fitcut-mirror-pilot-feedback";
+const defaultPilotFeedback: PilotFeedback = {
+  resemblanceScore: "4",
+  styleScore: "4",
+  salonShareIntent: "yes",
+  paymentIntent: "maybe",
+  willingnessToPay: "3000",
+  awkwardParts: "",
+};
 
 export function FitcutStudio() {
   const [photos, setPhotos] = useState<Record<PhotoSlot, UploadedPhoto | null>>({
@@ -212,6 +165,11 @@ export function FitcutStudio() {
   const [isRendering, setIsRendering] = useState(false);
   const [renderedResults, setRenderedResults] = useState<RenderedResult[]>([]);
   const [statusMessage, setStatusMessage] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [styleMemo, setStyleMemo] = useState("");
+  const [pilotFeedback, setPilotFeedback] =
+    useState<PilotFeedback>(defaultPilotFeedback);
+  const [pilotFeedbackSaved, setPilotFeedbackSaved] = useState(false);
   const leftInputRef = useRef<HTMLInputElement>(null);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const rightInputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +208,12 @@ export function FitcutStudio() {
     event: ChangeEvent<HTMLInputElement>,
   ) {
     const originalFile = event.target.files?.[0];
+
+    if (!privacyAccepted) {
+      setStatusMessage("사진 업로드 전 개인정보 안내와 AI 참고용 고지에 동의해 주세요.");
+      event.target.value = "";
+      return;
+    }
 
     if (!originalFile) {
       return;
@@ -350,6 +314,7 @@ export function FitcutStudio() {
     try {
       const formData = new FormData();
       appendPhotoPayload(formData, currentPhotos);
+      appendStyleMemoPayload(formData, styleMemo);
 
       const response = await fetch(
         `${apiBaseUrl}/api/hairstyles/recommend/`,
@@ -372,6 +337,7 @@ export function FitcutStudio() {
         payload.recommendations?.length ? payload.recommendations : fitcutStyles,
         preferredStyleIds,
         selectedHairColor,
+        styleMemo,
       );
       const nextRecommendations = recommendationSet.map((style, previewIndex) => ({
           ...style,
@@ -397,7 +363,14 @@ export function FitcutStudio() {
       void generateStylePreviews(currentPhotos, nextRecommendations, runId);
     } catch (error) {
       console.error(error);
-      setRecommendations(fitcutStyles);
+      setRecommendations(
+        buildRecommendationSet(
+          fitcutStyles,
+          preferredStyleIds,
+          selectedHairColor,
+          styleMemo,
+        ),
+      );
       setAnalysisNotes(analysisLines);
       setStatusMessage(getGenerationFailureMessage(error));
     } finally {
@@ -431,7 +404,7 @@ export function FitcutStudio() {
         try {
           const formData = new FormData();
           appendPhotoPayload(formData, currentPhotos);
-          appendStylePayload(formData, style);
+          appendStylePayload(formData, style, selectedHairColor.id, styleMemo);
           formData.append("previewIndex", String(previewIndex));
 
           const payload = await postFormWithRetry<{ imageUrl?: string }>(
@@ -519,6 +492,78 @@ export function FitcutStudio() {
     setSelectedStyleId(null);
     setRenderedResults([]);
     setStatusMessage("헤어 컬러가 반영되었습니다. 추천 받기를 눌러주세요.");
+  }
+
+  function updateStyleMemo(value: string) {
+    setStyleMemo(value);
+    setAnalysisReady(false);
+    setSelectedStyleId(null);
+    setRenderedResults([]);
+    setStatusMessage("요청사항 메모가 반영되었습니다. 추천 받기를 눌러주세요.");
+  }
+
+  function updatePilotFeedback(field: PilotFeedbackField, value: string) {
+    setPilotFeedback((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setPilotFeedbackSaved(false);
+  }
+
+  function savePilotFeedback() {
+    const payload = {
+      createdAt: new Date().toISOString(),
+      feedback: pilotFeedback,
+      selectedHairColor: selectedHairColor.name,
+      selectedStyle: selectedStyle
+        ? {
+            id: selectedStyle.id,
+            name: selectedStyle.name,
+            tags: selectedStyle.tags,
+          }
+        : null,
+      styleMemo: styleMemo.trim(),
+    };
+    const saved = readSavedPilotFeedback();
+
+    window.localStorage.setItem(
+      pilotFeedbackStorageKey,
+      JSON.stringify([payload, ...saved].slice(0, 30)),
+    );
+    setPilotFeedbackSaved(true);
+    setStatusMessage("파일럿 피드백이 이 브라우저에 저장되었습니다.");
+  }
+
+  async function copySalonBrief() {
+    if (!selectedStyle) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(
+      createSalonBrief({
+        feedback: pilotFeedback,
+        hairColor: selectedHairColor,
+        results: renderedResults,
+        style: selectedStyle,
+        styleMemo,
+      }),
+    );
+    setStatusMessage("미용사에게 보낼 상담 메모를 클립보드에 복사했습니다.");
+  }
+
+  async function downloadBoard() {
+    if (!selectedStyle) {
+      return;
+    }
+
+    setStatusMessage("상담용 9컷 보드를 저장하는 중입니다.");
+    await downloadConsultationBoard({
+      hairColor: selectedHairColor,
+      results: renderedResults,
+      style: selectedStyle,
+      styleMemo,
+    });
+    setStatusMessage("상담용 9컷 보드 다운로드를 시작했습니다.");
   }
 
   function startRecommendation() {
@@ -783,7 +828,7 @@ export function FitcutStudio() {
   }) {
     const formData = new FormData();
     appendPhotoPayload(formData, photos);
-    appendStylePayload(formData, style);
+    appendStylePayload(formData, style, selectedHairColor.id, styleMemo);
     formData.append("angleIndex", String(angleIndex));
 
     if (baseReference) {
@@ -839,6 +884,9 @@ export function FitcutStudio() {
     setRenderedResults([]);
     setIsRendering(false);
     setStatusMessage("");
+    setStyleMemo("");
+    setPilotFeedback(defaultPilotFeedback);
+    setPilotFeedbackSaved(false);
     previewRunRef.current += 1;
     renderRunRef.current += 1;
 
@@ -891,13 +939,40 @@ export function FitcutStudio() {
         type="file"
       />
 
+      <FlowStepper
+        activeStep={
+          renderedResults.some((result) => result.imageUrl)
+            ? 4
+            : selectedStyle
+              ? 3
+              : analysisReady
+                ? 2
+                : hasAnyPhoto
+                  ? 1
+                  : 0
+        }
+      />
+      <ConsentNotice
+        accepted={privacyAccepted}
+        onChange={setPrivacyAccepted}
+      />
+
       <div className="grid gap-4 lg:grid-cols-3">
         {photoSlotConfig.map((item) => (
           <UploadBox
             key={item.slot}
             label={item.label}
             photo={photos[item.slot]}
-            onClick={() => getInputRef(item.slot).current?.click()}
+            onClick={() => {
+              if (!privacyAccepted) {
+                setStatusMessage(
+                  "사진 업로드 전 개인정보 안내와 AI 참고용 고지에 동의해 주세요.",
+                );
+                return;
+              }
+
+              getInputRef(item.slot).current?.click();
+            }}
           />
         ))}
       </div>
@@ -935,6 +1010,10 @@ export function FitcutStudio() {
           <HairColorPanel
             onSelect={selectHairColor}
             selectedColorId={selectedHairColorId}
+          />
+          <StyleMemoPanel
+            onChange={updateStyleMemo}
+            value={styleMemo}
           />
           <div className="flex flex-col gap-3 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1036,8 +1115,84 @@ export function FitcutStudio() {
               />
             ))}
           </div>
+          <SalonHandoffPanel
+            feedback={pilotFeedback}
+            feedbackSaved={pilotFeedbackSaved}
+            hairColor={selectedHairColor}
+            onCopyBrief={() => void copySalonBrief()}
+            onDownloadBoard={() => void downloadBoard()}
+            onFeedbackChange={updatePilotFeedback}
+            onSaveFeedback={savePilotFeedback}
+            results={renderedResults}
+            style={selectedStyle}
+            styleMemo={styleMemo}
+          />
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function FlowStepper({ activeStep }: { activeStep: number }) {
+  const steps = ["사진", "선호", "추천", "선택", "상담 보드"];
+
+  return (
+    <div className="mb-4 grid gap-2 rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-3 sm:grid-cols-5">
+      {steps.map((step, index) => (
+        <div
+          className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${
+            index <= activeStep
+              ? "bg-[#30271a] text-[#fffaf1]"
+              : "bg-white/5 text-[#8f826f]"
+          }`}
+          key={step}
+        >
+          <span
+            className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${
+              index <= activeStep
+                ? "bg-[#f3d28a] text-[#1a1712]"
+                : "bg-[#211d17] text-[#8f826f]"
+            }`}
+          >
+            {index + 1}
+          </span>
+          {step}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConsentNotice({
+  accepted,
+  onChange,
+}: {
+  accepted: boolean;
+  onChange: (accepted: boolean) => void;
+}) {
+  return (
+    <section className="mb-4 rounded-md border border-[#c9a96a]/30 bg-[#30271a]/55 p-4">
+      <label className="flex items-start gap-3">
+        <input
+          checked={accepted}
+          className="mt-1 size-4 accent-[#f3d28a]"
+          onChange={(event) => onChange(event.target.checked)}
+          type="checkbox"
+        />
+        <span>
+          <span className="block text-sm font-semibold text-[#fffaf1]">
+            얼굴 사진을 AI 헤어스타일 추천과 상담 이미지 생성에 사용하는 것에 동의합니다.
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-[#d8cbb8]">
+            사진은 AI 생성 요청에 사용되며, 결과는 실제 시술을 보장하지 않는 참고 시안입니다.
+            미용사에게 공유할 때는 고객 동의가 필요하고, 정식 저장/삭제/공유 링크는 다음 단계에서 서버 저장소로 분리합니다.
+          </span>
+        </span>
+      </label>
+      <div className="mt-3 grid gap-2 text-xs leading-5 text-[#b8aa95] sm:grid-cols-2">
+        <p>좋은 사진: 얼굴과 머리 전체가 선명하고 조명이 밝은 사진</p>
+        <p>피할 사진: 모자, 선글라스, 마스크, 강한 필터, 심한 흔들림</p>
+      </div>
     </section>
   );
 }
@@ -1095,6 +1250,38 @@ function UploadBox({
         </div>
       )}
     </button>
+  );
+}
+
+function StyleMemoPanel({
+  onChange,
+  value,
+}: {
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <section className="rounded-md border border-[#2b281f] bg-[#0f0e0c]/72 p-4">
+      <div className="flex items-center gap-2">
+        <Sparkles aria-hidden="true" className="text-[#f3d28a]" size={18} />
+        <h2 className="text-lg font-semibold text-[#fffaf1]">
+          원하는 느낌 메모
+        </h2>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-[#b8aa95]">
+        피하고 싶은 스타일, 목적, 평소 고민을 적으면 추천과 생성 프롬프트에 함께 반영합니다.
+      </p>
+      <textarea
+        className="mt-4 min-h-28 w-full resize-y rounded-md border border-white/12 bg-[#11100e] p-3 text-sm leading-6 text-[#fffaf1] outline-none transition placeholder:text-[#6f6556] focus:border-[#f3d28a]"
+        maxLength={240}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="예: 옆머리가 뜨는 편이라 슬림하게, 면접용으로 단정하게, 이마는 너무 많이 보이지 않게 해주세요."
+        value={value}
+      />
+      <p className="mt-2 text-right text-xs text-[#8f826f]">
+        {value.length}/240
+      </p>
+    </section>
   );
 }
 
@@ -1764,6 +1951,189 @@ function ResultCard({
   );
 }
 
+function SalonHandoffPanel({
+  feedback,
+  feedbackSaved,
+  hairColor,
+  onCopyBrief,
+  onDownloadBoard,
+  onFeedbackChange,
+  onSaveFeedback,
+  results,
+  style,
+  styleMemo,
+}: {
+  feedback: PilotFeedback;
+  feedbackSaved: boolean;
+  hairColor: HairColorChoice;
+  onCopyBrief: () => void;
+  onDownloadBoard: () => void;
+  onFeedbackChange: (field: PilotFeedbackField, value: string) => void;
+  onSaveFeedback: () => void;
+  results: RenderedResult[];
+  style: DisplayRecommendation;
+  styleMemo: string;
+}) {
+  const generatedCount = results.filter((result) => result.imageUrl).length;
+  const canDownload = generatedCount > 0;
+
+  return (
+    <section className="grid gap-4 rounded-md border border-[#2b281f] bg-[#0f0e0c]/82 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)]">
+      <div>
+        <div className="flex items-center gap-2">
+          <Sparkles aria-hidden="true" className="text-[#f3d28a]" size={18} />
+          <h3 className="text-lg font-semibold text-[#fffaf1]">
+            미용사용 상담 시트
+          </h3>
+        </div>
+        <div className="mt-4 grid gap-3 text-sm leading-6 text-[#d8cbb8]">
+          <p>
+            <span className="font-semibold text-[#f3d28a]">선택 스타일</span>{" "}
+            {style.name} · {hairColor.name}
+          </p>
+          <p>
+            <span className="font-semibold text-[#f3d28a]">상담 메모</span>{" "}
+            {styleMemo.trim() || "별도 요청사항 없음"}
+          </p>
+          <p>
+            <span className="font-semibold text-[#f3d28a]">주의</span>{" "}
+            AI 이미지는 상담 참고 시안이며 실제 시술 결과를 보장하지 않습니다. 최종 기장, 다운펌, 펌 강도, 염색 밝기는 디자이너와 현장에서 확인하세요.
+          </p>
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#f3d28a] px-4 text-sm font-bold text-[#1a1712] transition hover:bg-[#ffdf98] disabled:cursor-not-allowed disabled:bg-[#4a412e] disabled:text-[#b8aa95]"
+            disabled={!canDownload}
+            onClick={onDownloadBoard}
+            type="button"
+          >
+            <Download aria-hidden="true" size={16} />
+            9컷 보드 저장
+          </button>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/12 px-4 text-sm font-semibold text-[#e7dccb] transition hover:bg-white/8"
+            onClick={onCopyBrief}
+            type="button"
+          >
+            <Copy aria-hidden="true" size={16} />
+            상담 메모 복사
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-md border border-white/10 bg-[#11100e]/72 p-4">
+        <h4 className="text-base font-semibold text-[#fffaf1]">
+          파일럿 피드백
+        </h4>
+        <div className="mt-3 grid gap-3">
+          <FeedbackSelect
+            label="본인과 닮았나요?"
+            onChange={(value) => onFeedbackChange("resemblanceScore", value)}
+            options={scoreOptions}
+            value={feedback.resemblanceScore}
+          />
+          <FeedbackSelect
+            label="스타일이 마음에 드나요?"
+            onChange={(value) => onFeedbackChange("styleScore", value)}
+            options={scoreOptions}
+            value={feedback.styleScore}
+          />
+          <FeedbackSelect
+            label="미용실에 가져갈 의향"
+            onChange={(value) => onFeedbackChange("salonShareIntent", value)}
+            options={intentOptions}
+            value={feedback.salonShareIntent}
+          />
+          <FeedbackSelect
+            label="유료 사용 의향"
+            onChange={(value) => onFeedbackChange("paymentIntent", value)}
+            options={intentOptions}
+            value={feedback.paymentIntent}
+          />
+          <label className="grid gap-1 text-sm text-[#d8cbb8]">
+            <span>지불 가능 금액</span>
+            <input
+              className="h-10 rounded-md border border-white/12 bg-[#0f0e0c] px-3 text-[#fffaf1] outline-none focus:border-[#f3d28a]"
+              onChange={(event) =>
+                onFeedbackChange("willingnessToPay", event.target.value)
+              }
+              placeholder="예: 3000"
+              value={feedback.willingnessToPay}
+            />
+          </label>
+          <label className="grid gap-1 text-sm text-[#d8cbb8]">
+            <span>어색한 부분</span>
+            <textarea
+              className="min-h-20 resize-y rounded-md border border-white/12 bg-[#0f0e0c] p-3 text-[#fffaf1] outline-none focus:border-[#f3d28a]"
+              onChange={(event) =>
+                onFeedbackChange("awkwardParts", event.target.value)
+              }
+              placeholder="예: 얼굴이 달라 보임, 정면 각도가 어색함, 옆머리 기장이 애매함"
+              value={feedback.awkwardParts}
+            />
+          </label>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#f3d28a]/50 bg-[#30271a] px-4 text-sm font-bold text-[#fffaf1] transition hover:bg-[#3c311f]"
+            onClick={onSaveFeedback}
+            type="button"
+          >
+            <Check aria-hidden="true" size={16} />
+            {feedbackSaved ? "피드백 저장됨" : "피드백 저장"}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const scoreOptions = [
+  { label: "1", value: "1" },
+  { label: "2", value: "2" },
+  { label: "3", value: "3" },
+  { label: "4", value: "4" },
+  { label: "5", value: "5" },
+];
+
+const intentOptions = [
+  { label: "예", value: "yes" },
+  { label: "고민", value: "maybe" },
+  { label: "아니오", value: "no" },
+];
+
+function FeedbackSelect({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm text-[#d8cbb8]">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            className={`h-9 rounded-md border px-3 text-sm font-semibold transition ${
+              value === option.value
+                ? "border-[#f3d28a] bg-[#30271a] text-[#fffaf1]"
+                : "border-white/12 bg-white/5 text-[#b8aa95] hover:border-[#c9a96a]/55"
+            }`}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 async function prepareUploadImage(file: File) {
   if (!file.type.startsWith("image/")) {
     throw new Error("이미지 파일만 업로드할 수 있습니다.");
@@ -1847,17 +2217,30 @@ async function dataUrlToFile(dataUrl: string, fileName: string) {
   });
 }
 
-function appendStylePayload(formData: FormData, style: DisplayRecommendation) {
+function appendStylePayload(
+  formData: FormData,
+  style: DisplayRecommendation,
+  hairColorId: string,
+  styleMemo: string,
+) {
   formData.append("styleId", style.id);
-  formData.append("styleName", style.name);
-  formData.append("stylePrompt", style.prompt);
-  formData.append("previewPrompt", style.previewPrompt);
+  formData.append("hairColorId", hairColorId);
+  appendStyleMemoPayload(formData, styleMemo);
+}
+
+function appendStyleMemoPayload(formData: FormData, styleMemo: string) {
+  const trimmed = styleMemo.trim();
+
+  if (trimmed) {
+    formData.append("styleMemo", trimmed.slice(0, 240));
+  }
 }
 
 function buildRecommendationSet(
   autoRecommendations: FitcutStyle[],
   preferredStyleIds: string[],
   hairColor: HairColorChoice,
+  styleMemo = "",
 ) {
   const selectedStyles = preferredStyleIds
     .map((styleId) => styleCatalog.find((style) => style.id === styleId))
@@ -1878,13 +2261,21 @@ function buildRecommendationSet(
     }
   }
 
-  return merged.map((style) => applyHairColor(style, hairColor));
+  return merged.map((style) => applyHairColor(style, hairColor, styleMemo));
 }
 
-function applyHairColor(style: FitcutStyle, hairColor: HairColorChoice) {
+function applyHairColor(
+  style: FitcutStyle,
+  hairColor: HairColorChoice,
+  styleMemo = "",
+) {
+  const trimmedMemo = styleMemo.trim();
+
   return {
     ...style,
-    prompt: `${style.prompt}\nHair color instruction: ${hairColor.prompt}`,
+    prompt: trimmedMemo
+      ? `${style.prompt}\nHair color instruction: ${hairColor.prompt}\nCustomer request memo: ${trimmedMemo}`
+      : `${style.prompt}\nHair color instruction: ${hairColor.prompt}`,
     tags: [...style.tags.slice(0, 2), hairColor.name],
   };
 }
@@ -2082,4 +2473,238 @@ function getConsultationSlotIndex(previewIndex: number | undefined) {
   }
 
   return normalizedIndex;
+}
+
+function readSavedPilotFeedback() {
+  try {
+    const raw = window.localStorage.getItem(pilotFeedbackStorageKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function createSalonBrief({
+  feedback,
+  hairColor,
+  results,
+  style,
+  styleMemo,
+}: {
+  feedback: PilotFeedback;
+  hairColor: HairColorChoice;
+  results: RenderedResult[];
+  style: DisplayRecommendation;
+  styleMemo: string;
+}) {
+  const readyLabels = results
+    .filter((result) => result.imageUrl)
+    .map((result) => result.label)
+    .join(", ");
+
+  return [
+    "[Fitcut Mirror 상담 메모]",
+    `선택 스타일: ${style.name}`,
+    `헤어 컬러: ${hairColor.name}`,
+    `고객 요청: ${styleMemo.trim() || "별도 요청사항 없음"}`,
+    `스타일 설명: ${style.reason}`,
+    `태그: ${style.tags.join(", ")}`,
+    `생성된 각도: ${readyLabels || "생성 중"}`,
+    "",
+    "[파일럿 피드백]",
+    `본인 닮음: ${feedback.resemblanceScore}/5`,
+    `스타일 만족: ${feedback.styleScore}/5`,
+    `미용실 공유 의향: ${formatIntent(feedback.salonShareIntent)}`,
+    `유료 사용 의향: ${formatIntent(feedback.paymentIntent)}`,
+    `지불 가능 금액: ${feedback.willingnessToPay || "미입력"}`,
+    `어색한 부분: ${feedback.awkwardParts.trim() || "미입력"}`,
+    "",
+    "주의: AI 이미지는 상담 참고 시안이며 실제 시술 결과를 보장하지 않습니다. 최종 기장, 펌, 다운펌, 염색 밝기는 디자이너와 현장에서 확인해야 합니다.",
+  ].join("\n");
+}
+
+function formatIntent(value: string) {
+  if (value === "yes") {
+    return "예";
+  }
+
+  if (value === "no") {
+    return "아니오";
+  }
+
+  return "고민";
+}
+
+async function downloadConsultationBoard({
+  hairColor,
+  results,
+  style,
+  styleMemo,
+}: {
+  hairColor: HairColorChoice;
+  results: RenderedResult[];
+  style: DisplayRecommendation;
+  styleMemo: string;
+}) {
+  const boardResults = results.filter((result) => result.imageUrl);
+
+  if (!boardResults.length) {
+    return;
+  }
+
+  const columns = 3;
+  const cell = 360;
+  const gap = 18;
+  const padding = 38;
+  const headerHeight = 180;
+  const rows = Math.ceil(boardResults.length / columns);
+  const width = padding * 2 + columns * cell + (columns - 1) * gap;
+  const height = padding * 2 + headerHeight + rows * cell + (rows - 1) * gap;
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("브라우저에서 상담 보드를 만들지 못했습니다.");
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+  context.fillStyle = "#11100e";
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = "#fffaf1";
+  context.font = "700 42px Arial";
+  context.fillText("FITCUT MIRROR 상담 보드", padding, padding + 48);
+  context.font = "700 30px Arial";
+  context.fillText(`${style.name} · ${hairColor.name}`, padding, padding + 92);
+  context.font = "400 20px Arial";
+  context.fillStyle = "#d8cbb8";
+  wrapCanvasText(
+    context,
+    styleMemo.trim() || "고객 요청사항: 별도 메모 없음",
+    padding,
+    padding + 128,
+    width - padding * 2,
+    28,
+  );
+  context.fillStyle = "#b8aa95";
+  context.font = "400 17px Arial";
+  context.fillText(
+    "AI 참고 시안이며 실제 시술 결과를 보장하지 않습니다. 현장 상담으로 최종 기장과 시술 가능 여부를 확인하세요.",
+    padding,
+    padding + 164,
+  );
+
+  await Promise.all(
+    boardResults.map(async (result, index) => {
+      if (!result.imageUrl) {
+        return;
+      }
+
+      const image = await loadCanvasImage(result.imageUrl);
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x = padding + column * (cell + gap);
+      const y = padding + headerHeight + row * (cell + gap);
+
+      context.fillStyle = "#0f0e0c";
+      context.fillRect(x, y, cell, cell);
+      drawImageCover(context, image, x, y, cell, cell);
+      context.fillStyle = "rgba(15,14,12,0.72)";
+      context.fillRect(x, y, cell, 46);
+      context.fillStyle = "#f3d28a";
+      context.font = "700 20px Arial";
+      context.fillText(result.label, x + 16, y + 30);
+      context.fillStyle = "rgba(15,14,12,0.78)";
+      context.fillRect(x, y + cell - 52, cell, 52);
+      context.fillStyle = "#fffaf1";
+      context.font = "700 20px Arial";
+      context.fillText(style.name, x + 16, y + cell - 20);
+    }),
+  );
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (value) => {
+        if (value) {
+          resolve(value);
+        } else {
+          reject(new Error("상담 보드 저장에 실패했습니다."));
+        }
+      },
+      "image/jpeg",
+      0.9,
+    );
+  });
+
+  triggerDownload(blob, `fitcut-${style.id}-consultation-board.jpg`);
+}
+
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("이미지를 상담 보드에 넣지 못했습니다."));
+    image.src = src;
+  });
+}
+
+function drawImageCover(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const boxRatio = width / height;
+  const drawWidth = imageRatio > boxRatio ? height * imageRatio : width;
+  const drawHeight = imageRatio > boxRatio ? height : width / imageRatio;
+  const drawX = x + (width - drawWidth) / 2;
+  const drawY = y + (height - drawHeight) / 2;
+
+  context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+function wrapCanvasText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+) {
+  const words = text.split(/\s+/);
+  let line = "";
+  let offsetY = 0;
+
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+
+    if (context.measureText(testLine).width > maxWidth && line) {
+      context.fillText(line, x, y + offsetY);
+      line = word;
+      offsetY += lineHeight;
+      continue;
+    }
+
+    line = testLine;
+  }
+
+  if (line) {
+    context.fillText(line, x, y + offsetY);
+  }
+}
+
+function triggerDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getHairColorById } from "@/lib/fitcut-colors";
 import { getStyleById, resultAngles } from "@/lib/fitcut-styles";
 import { editHairImage } from "@/lib/server/openai-image";
 
@@ -21,14 +22,12 @@ export async function POST(request: Request) {
     const leftSide = formData.get("leftSide");
     const rightSide = formData.get("rightSide");
     const styleId = getString(formData.get("styleId"));
+    const hairColorId = getString(formData.get("hairColorId"));
+    const styleMemo = sanitizeStyleMemo(formData.get("styleMemo"));
     const angleIndex = Number(formData.get("angleIndex") ?? -1);
-    const fallbackStyle = getStyleById(styleId);
-    const styleName =
-      getString(formData.get("styleName")) ||
-      fallbackStyle?.name ||
-      "추천 스타일";
-    const stylePrompt =
-      getString(formData.get("stylePrompt")) || fallbackStyle?.prompt;
+    const style = getStyleById(styleId);
+    const hairColor =
+      getHairColorById(hairColorId) ?? getHairColorById("natural-black");
     const angle = resultAngles[angleIndex];
 
     if (!(front instanceof File) || !(side instanceof File)) {
@@ -38,12 +37,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!stylePrompt || !angle) {
+    if (!style || !hairColor || !angle) {
       return NextResponse.json(
-        { error: "지원하지 않는 헤어스타일 또는 각도입니다." },
+        { error: "지원하지 않는 헤어스타일, 컬러 또는 각도입니다." },
         { status: 400 },
       );
     }
+
+    const stylePrompt = buildStylePrompt(style.prompt, hairColor.prompt, styleMemo);
 
     const imageUrl = await editHairImage({
       base: base instanceof File ? base : undefined,
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       source: angle.source,
       size: process.env.OPENAI_ANGLE_IMAGE_SIZE ?? "1024x1024",
       prompt: buildAnglePrompt(
-        styleName,
+        style.name,
         stylePrompt,
         angle.prompt,
         base instanceof File,
@@ -91,8 +92,8 @@ function buildAnglePrompt(
 Create a photorealistic men's salon consultation reference image.
 
 Use the uploaded photos as identity references.
-${hasBaseReference ? "Use the first uploaded image as the selected hairstyle reference. It may be front-facing, left-facing, right-facing, high angle, or low angle. Match its face, hair design, black leather jacket, black turtleneck, skin tone, and premium indoor lighting as closely as possible, but do not copy its pose if the requested camera position is different. Never mirror, invert, or horizontally flip this selected reference." : ""}
-Preserve the same person: facial identity, face shape, skin tone, clothing style, and overall realistic appearance.
+${hasBaseReference ? "Use the first uploaded image as the selected hairstyle reference. It may be front-facing, left-facing, right-facing, high angle, or low angle. Match its face, hair design, actual clothing style from the uploaded photos, skin tone, and realistic indoor lighting as closely as possible, but do not copy its pose if the requested camera position is different. Never mirror, invert, or horizontally flip this selected reference." : ""}
+Preserve the same person: facial identity, face shape, skin tone, actual clothing style from the uploaded photos, and overall realistic appearance.
 Maintain the exact left-right orientation from the uploaded references. Do not horizontally flip the face, hair part, hair flow, facial asymmetry, jacket zipper, hand position, or background landmarks.
 Facial consistency is more important than beautification. Do not make the face slimmer, wider, older, younger, heavier, thinner, sharper, softer, more handsome, or more doll-like.
 Keep the same cheek fullness, jaw width, chin shape, nose size, eye spacing, eyelid shape, mouth shape, facial asymmetry, and natural expression tone from the uploaded identity references.
@@ -120,6 +121,28 @@ Single finished portrait only. Never create a 3x3 grid, collage, contact sheet, 
 
 function getString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function sanitizeStyleMemo(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.replace(/[<>]/g, "").trim().slice(0, 240);
+}
+
+function buildStylePrompt(
+  stylePrompt: string,
+  hairColorPrompt: string,
+  styleMemo: string,
+) {
+  return [
+    stylePrompt,
+    `Hair color instruction: ${hairColorPrompt}`,
+    styleMemo ? `Customer request memo: ${styleMemo}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function hasFormContentType(request: Request) {
