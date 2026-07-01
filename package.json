@@ -1,5 +1,5 @@
 {
-  "name": "fitcut-mirror",
+  "name": "mirilook",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
@@ -9,6 +9,8 @@
   "scripts": {
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
-    "lint:web": "npm --workspace apps/web run lint"
+    "lint:web": "npm --workspace apps/web run lint",
+    "verify:web": "npm --workspace apps/web run lint && npm --workspace apps/web run build",
+    "deploy:mirilook": "powershell -ExecutionPolicy Bypass -File scripts/deploy-mirilook.ps1"
   }
 }

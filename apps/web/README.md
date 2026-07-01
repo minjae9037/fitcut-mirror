@@ -1,6 +1,6 @@
-# Fitcut Mirror Web
+﻿# Miri Look Web
 
-Fitcut Mirror의 웹 MVP 앱입니다.
+미리룩의 웹 MVP 앱입니다.
 
 ## Stack
 
@@ -30,7 +30,7 @@ npm run dev
 
 ## Current State
 
-- Fitcut Mirror 브랜드 첫 화면
+- Miri Look 브랜드 첫 화면
 - 사진 업로드 UI
 - 스타일 옵션 선택 UI
 - mock AI 결과 미리보기

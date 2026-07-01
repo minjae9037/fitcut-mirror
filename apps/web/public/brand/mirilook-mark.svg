@@ -1,0 +1,30 @@
+﻿<svg width="512" height="512" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Miri Look">
+  <defs>
+    <linearGradient id="mirilook-bg" x1="7" y1="6" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2a1d10"/>
+      <stop offset="0.54" stop-color="#13100c"/>
+      <stop offset="1" stop-color="#080706"/>
+    </linearGradient>
+    <linearGradient id="mirilook-gold" x1="14" y1="11" x2="51" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff0ad"/>
+      <stop offset="0.46" stop-color="#f0c96e"/>
+      <stop offset="1" stop-color="#9e7431"/>
+    </linearGradient>
+    <radialGradient id="mirilook-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 18) rotate(49.3987) scale(42.5323)">
+      <stop stop-color="#f8d681" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#f8d681" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#mirilook-bg)" stroke="#b8934e" stroke-width="1.5"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#mirilook-glow)"/>
+  <path d="M21 44.8V26.2C21 19.4 25.9 14 32 14s11 5.4 11 12.2v18.6" opacity="0.38" stroke="url(#mirilook-gold)" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M22.7 25.1c2.5-5.2 7.8-7.3 12.3-5.9 3 .9 5.1 2.9 6.3 5.7" stroke="url(#mirilook-gold)" stroke-width="3" stroke-linecap="round"/>
+  <path d="M24.3 31.2c3.3-2.7 6.7-3.4 10.3-2.2 2.1.7 3.9.6 5.3-.4" opacity="0.82" stroke="#f7d98a" stroke-width="2.3" stroke-linecap="round"/>
+  <path d="M17.8 43.5 45.9 15.4" stroke="#f7d98a" stroke-width="4" stroke-linecap="round"/>
+  <path d="m43.5 15.2 6.4-3.1-3.1 6.4" stroke="#f7d98a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 17.8 46.2 44" opacity="0.75" stroke="#a97735" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="17.3" cy="44.1" r="5.3" stroke="#f7d98a" stroke-width="2.6"/>
+  <circle cx="46.7" cy="44.1" r="5.3" stroke="#c69a48" stroke-width="2.6"/>
+  <circle cx="32" cy="32" r="2.7" fill="#fff1b8"/>
+  <path d="M14 52h36" opacity="0.34" stroke="#f7d98a" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

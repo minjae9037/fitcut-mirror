@@ -1,7 +1,7 @@
-# Fitcut Mirror Agent Operating Model
+﻿# Miri Look Agent Operating Model
 
 > 기준일: 2026-06-24  
-> 목적: Fitcut Mirror를 개발하는 가상 조직과 보고 체계를 정의한다.
+> 목적: 미리룩을 개발하는 가상 조직과 보고 체계를 정의한다.
 
 ## 1. 조직 구조
 
@@ -90,7 +90,7 @@ Planning Lead Agent
 
 ## 4. 현재 목표
 
-Fitcut Mirror 웹서비스를 고객에게 론칭해도 될 수준으로 만든다.
+Miri Look 웹서비스를 고객에게 론칭해도 될 수준으로 만든다.
 
 초기 론칭 기준:
 

@@ -6,6 +6,7 @@ out/
 # Local environment
 .env
 .env*.local
+.secrets/
 
 # Local test images
 samples/
@@ -16,3 +17,5 @@ HairVerse_*.md
 # Keep detailed internal strategy docs local for public prototype repositories.
 docs/01-mvp-scope.md
 docs/02-tech-stack.md
+
+.vercel

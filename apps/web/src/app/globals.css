@@ -3,6 +3,43 @@
 :root {
   --background: #11100e;
   --foreground: #f8f1e5;
+  color-scheme: dark;
+}
+
+html[data-mirilook-theme="light"] {
+  --background: #f6f1e7;
+  --foreground: #1d1912;
+  color-scheme: light;
+
+  /* Light palette tokens. The app uses hardcoded dark hex utilities inline;
+     these tokens drive a complete semantic remap below so light mode reads as
+     a single coherent warm-paper theme instead of patched-over dark mode. */
+  --ml-card: #fffdf9; /* elevated cards sitting on the page */
+  --ml-page: #f6f1e7; /* base page surface */
+  --ml-panel: #fbf6ec; /* sections / panels */
+  --ml-sunken: #efe7d6; /* inputs, wells, recessed areas */
+  --ml-warm: #f6ead0; /* gold-tinted raised / hover */
+  --ml-warm-strong: #f0e0b8; /* selected / active gold tint */
+
+  --ml-info: #e9f1fb;
+  --ml-success: #e7f4ea;
+  --ml-danger: #fbeae2;
+
+  --ml-ink: #1d1912; /* headings */
+  --ml-body: #382f22; /* body text */
+  --ml-muted: #6e6450; /* secondary / muted text (>=4.5:1 on paper) */
+  --ml-gold: #8a5d1c; /* gold accent text on light */
+
+  --ml-info-ink: #1d4e8a;
+  --ml-success-ink: #1f6a3d;
+  --ml-danger-ink: #b1384d;
+
+  --ml-border: rgba(120, 92, 44, 0.22);
+  --ml-border-soft: rgba(120, 92, 44, 0.14);
+  --ml-gold-border: #d6b878;
+  --ml-info-border: #b6d0ef;
+  --ml-success-border: #a6d6b9;
+  --ml-danger-border: #efb6ab;
 }
 
 @theme inline {
@@ -24,6 +61,9 @@ body {
     "Segoe UI",
     Arial,
     sans-serif;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 .font-korean-calligraphy {
@@ -61,4 +101,332 @@ button {
 ::selection {
   background: #f3d28a;
   color: #11100e;
+}
+
+/* Accessibility: always show a visible focus ring for keyboard users, even on
+   elements that set Tailwind `outline-none`. Mouse clicks don't trigger
+   :focus-visible, so this stays invisible for pointer users. The ring color
+   adapts to theme (deep gold on light, gold on dark) for contrast. */
+:focus-visible {
+  outline: 2px solid var(--ml-gold, #f3d28a) !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect users who prefer reduced motion: drop transforms/animations while
+   keeping opacity/color cues that aid comprehension. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================================
+   LIGHT THEME REMAP
+   The inline classes use literal dark hex values. Each group below maps a
+   tier of the dark palette onto a coherent light surface/ink/accent token.
+   Prefix matching (no closing bracket) also catches opacity variants
+   like bg-[#0f0e0c]/86.
+   ========================================================================= */
+
+html[data-mirilook-theme="light"] body {
+  background:
+    radial-gradient(circle at top left, rgba(243, 210, 138, 0.16), transparent 38rem),
+    var(--ml-page);
+}
+
+/* Hero scrims: fade the dark salon photo into the light page so the
+   (now dark) hero text stays readable and the page reads as light. */
+html[data-mirilook-theme="light"] [data-mirilook-hero-scrim="side"] {
+  background: linear-gradient(
+    90deg,
+    rgba(246, 241, 231, 0.95) 0%,
+    rgba(246, 241, 231, 0.82) 44%,
+    rgba(246, 241, 231, 0.5) 100%
+  ) !important;
+}
+
+html[data-mirilook-theme="light"] [data-mirilook-hero-scrim="base"] {
+  background: linear-gradient(
+    180deg,
+    rgba(246, 241, 231, 0.35) 0%,
+    rgba(246, 241, 231, 0.62) 48%,
+    var(--ml-page) 100%
+  ) !important;
+}
+
+/* ---- Surfaces: cards (deepest dark tier) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#0f0e0c"],
+html[data-mirilook-theme="light"] [class*="bg-[#0c0b0a"] {
+  background-color: var(--ml-card) !important;
+}
+
+/* ---- Surfaces: page-level ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#11100e"] {
+  background-color: var(--ml-page) !important;
+}
+
+/* ---- Surfaces: panels / sections ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#171511"],
+html[data-mirilook-theme="light"] [class*="bg-[#15130f"],
+html[data-mirilook-theme="light"] [class*="bg-[#17130d"],
+html[data-mirilook-theme="light"] [class*="bg-[#19150f"],
+html[data-mirilook-theme="light"] [class*="bg-[#1d1912"],
+html[data-mirilook-theme="light"] [class*="bg-[#1d170d"],
+html[data-mirilook-theme="light"] [class*="bg-[#201c14"],
+html[data-mirilook-theme="light"] [class*="bg-[#211d17"],
+html[data-mirilook-theme="light"] [class*="bg-[#211b11"],
+html[data-mirilook-theme="light"] [class*="bg-[#242322"],
+html[data-mirilook-theme="light"] [class*="bg-[#24211c"],
+html[data-mirilook-theme="light"] [class*="bg-[#242018"],
+html[data-mirilook-theme="light"] [class*="bg-[#241d14"] {
+  background-color: var(--ml-panel) !important;
+}
+
+/* ---- Surfaces: sunken (inputs / wells) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#201a12"],
+html[data-mirilook-theme="light"] [class*="bg-[#2b2112"],
+html[data-mirilook-theme="light"] [class*="bg-[#2f2516"],
+html[data-mirilook-theme="light"] [class*="bg-[#2d2416"],
+html[data-mirilook-theme="light"] [class*="bg-[#2b2216"],
+html[data-mirilook-theme="light"] [class*="bg-[#2b2113"],
+html[data-mirilook-theme="light"] [class*="bg-[#2a2116"],
+html[data-mirilook-theme="light"] [class*="bg-[#8f826f"] {
+  background-color: var(--ml-sunken) !important;
+}
+
+/* ---- Surfaces: warm raised / hover (gold-tinted brown) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#30271a"],
+html[data-mirilook-theme="light"] [class*="bg-[#2d2414"],
+html[data-mirilook-theme="light"] [class*="bg-[#3a2e18"],
+html[data-mirilook-theme="light"] [class*="bg-[#3a2d17"],
+html[data-mirilook-theme="light"] [class*="bg-[#342816"],
+html[data-mirilook-theme="light"] [class*="bg-[#322713"],
+html[data-mirilook-theme="light"] [class*="bg-[#3a2c17"] {
+  background-color: var(--ml-warm) !important;
+}
+
+/* ---- Surfaces: strong gold tint (selected / active) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#4a412e"],
+html[data-mirilook-theme="light"] [class*="bg-[#675737"],
+html[data-mirilook-theme="light"] [class*="bg-[#c9a96a"] {
+  background-color: var(--ml-warm-strong) !important;
+}
+
+/* ---- Surfaces: info (blue-tinted dark) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#07111c"],
+html[data-mirilook-theme="light"] [class*="bg-[#122337"],
+html[data-mirilook-theme="light"] [class*="bg-[#253447"],
+html[data-mirilook-theme="light"] [class*="bg-[#13283c"],
+html[data-mirilook-theme="light"] [class*="bg-[#123544"],
+html[data-mirilook-theme="light"] [class*="bg-[#102136"],
+html[data-mirilook-theme="light"] [class*="bg-[#0c1824"] {
+  background-color: var(--ml-info) !important;
+}
+
+/* ---- Surfaces: success (green-tinted dark) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#173522"],
+html[data-mirilook-theme="light"] [class*="bg-[#21462d"],
+html[data-mirilook-theme="light"] [class*="bg-[#203424"],
+html[data-mirilook-theme="light"] [class*="bg-[#1e452b"],
+html[data-mirilook-theme="light"] [class*="bg-[#1b3326"],
+html[data-mirilook-theme="light"] [class*="bg-[#17351f"],
+html[data-mirilook-theme="light"] [class*="bg-[#173321"],
+html[data-mirilook-theme="light"] [class*="bg-[#15331f"],
+html[data-mirilook-theme="light"] [class*="bg-[#14271d"],
+html[data-mirilook-theme="light"] [class*="bg-[#0d1f18"],
+html[data-mirilook-theme="light"] [class*="bg-[#08130f"] {
+  background-color: var(--ml-success) !important;
+}
+
+/* ---- Surfaces: danger (red-tinted dark) ---- */
+html[data-mirilook-theme="light"] [class*="bg-[#391c17"],
+html[data-mirilook-theme="light"] [class*="bg-[#30151c"],
+html[data-mirilook-theme="light"] [class*="bg-[#4a231d"],
+html[data-mirilook-theme="light"] [class*="bg-[#3a1c1c"],
+html[data-mirilook-theme="light"] [class*="bg-[#2a1411"] {
+  background-color: var(--ml-danger) !important;
+}
+
+/* ---- Text: headings (brightest cream -> ink) ---- */
+html[data-mirilook-theme="light"] [class*="text-[#fffaf1"],
+html[data-mirilook-theme="light"] [class*="text-[#f8f1e5"],
+html[data-mirilook-theme="light"] [class*="text-[#fff4d8"],
+html[data-mirilook-theme="light"] [class*="text-[#fff4d7"],
+html[data-mirilook-theme="light"] [class*="text-[#f1dfbd"] {
+  color: var(--ml-ink) !important;
+}
+
+/* ---- Text: body ---- */
+html[data-mirilook-theme="light"] [class*="text-[#e7dccb"],
+html[data-mirilook-theme="light"] [class*="text-[#d8cbb8"],
+html[data-mirilook-theme="light"] [class*="text-[#cfc3b2"],
+html[data-mirilook-theme="light"] [class*="text-[#d8c8ad"] {
+  color: var(--ml-body) !important;
+}
+
+/* ---- Text: muted / secondary ---- */
+html[data-mirilook-theme="light"] [class*="text-[#b8aa95"],
+html[data-mirilook-theme="light"] [class*="text-[#a99b87"],
+html[data-mirilook-theme="light"] [class*="text-[#8f826f"],
+html[data-mirilook-theme="light"] [class*="text-[#6f6658"],
+html[data-mirilook-theme="light"] [class*="text-[#6f665c"] {
+  color: var(--ml-muted) !important;
+}
+
+/* ---- Text: gold accent ---- */
+html[data-mirilook-theme="light"] [class*="text-[#f3d28a"],
+html[data-mirilook-theme="light"] [class*="text-[#f8d98f"],
+html[data-mirilook-theme="light"] [class*="text-[#ffdf98"],
+html[data-mirilook-theme="light"] [class*="text-[#c9a96a"] {
+  color: var(--ml-gold) !important;
+}
+
+/* ---- Text: semantic info / success / danger (darken for light panels) ---- */
+html[data-mirilook-theme="light"] [class*="text-[#9cc8ff"],
+html[data-mirilook-theme="light"] [class*="text-[#dcecff"],
+html[data-mirilook-theme="light"] [class*="text-[#bcd5ef"],
+html[data-mirilook-theme="light"] [class*="text-[#9fb4c8"],
+html[data-mirilook-theme="light"] [class*="text-[#7f95ac"],
+html[data-mirilook-theme="light"] [class*="text-[#9ae8ff"] {
+  color: var(--ml-info-ink) !important;
+}
+
+html[data-mirilook-theme="light"] [class*="text-[#b7e3bb"],
+html[data-mirilook-theme="light"] [class*="text-[#d9f2df"],
+html[data-mirilook-theme="light"] [class*="text-[#bce8c7"],
+html[data-mirilook-theme="light"] [class*="text-[#b9f0c5"],
+html[data-mirilook-theme="light"] [class*="text-[#8bcf9f"],
+html[data-mirilook-theme="light"] [class*="text-[#7fa58c"] {
+  color: var(--ml-success-ink) !important;
+}
+
+html[data-mirilook-theme="light"] [class*="text-[#ffb8aa"],
+html[data-mirilook-theme="light"] [class*="text-[#ffe6eb"],
+html[data-mirilook-theme="light"] [class*="text-[#ffd5dd"],
+html[data-mirilook-theme="light"] [class*="text-[#ffb3a6"],
+html[data-mirilook-theme="light"] [class*="text-[#ff8fa8"],
+html[data-mirilook-theme="light"] [class*="text-[#ffb8c8"],
+html[data-mirilook-theme="light"] [class*="text-[#f06f91"] {
+  color: var(--ml-danger-ink) !important;
+}
+
+/* ---- Borders ---- */
+html[data-mirilook-theme="light"] [class*="border-[#f3d28a"],
+html[data-mirilook-theme="light"] [class*="border-[#c9a96a"] {
+  border-color: var(--ml-gold-border) !important;
+}
+
+html[data-mirilook-theme="light"] [class*="border-[#2b281f"],
+html[data-mirilook-theme="light"] [class*="border-white/"] {
+  border-color: var(--ml-border) !important;
+}
+
+html[data-mirilook-theme="light"] [class*="border-[#9cc8ff"],
+html[data-mirilook-theme="light"] [class*="border-[#6fa8dc"],
+html[data-mirilook-theme="light"] [class*="border-[#25c7f2"] {
+  border-color: var(--ml-info-border) !important;
+}
+
+html[data-mirilook-theme="light"] [class*="border-[#6fc48d"],
+html[data-mirilook-theme="light"] [class*="border-[#8bcf9f"],
+html[data-mirilook-theme="light"] [class*="border-[#9ee5b6"],
+html[data-mirilook-theme="light"] [class*="border-[#7fcf9b"] {
+  border-color: var(--ml-success-border) !important;
+}
+
+html[data-mirilook-theme="light"] [class*="border-[#ffad9d"],
+html[data-mirilook-theme="light"] [class*="border-[#f48aa5"] {
+  border-color: var(--ml-danger-border) !important;
+}
+
+/* ---- Shadows: warm and softer on paper ---- */
+html[data-mirilook-theme="light"] [class*="shadow-black"] {
+  --tw-shadow-color: rgba(96, 74, 44, 0.16) !important;
+}
+
+/* ---- Form controls keep ink text ---- */
+html[data-mirilook-theme="light"] input,
+html[data-mirilook-theme="light"] textarea,
+html[data-mirilook-theme="light"] select {
+  color: var(--ml-ink);
+}
+
+html[data-mirilook-theme="light"] input::placeholder,
+html[data-mirilook-theme="light"] textarea::placeholder {
+  color: rgba(110, 100, 80, 0.7);
+}
+
+.mirilook-neon-upload-cta {
+  border: 1px solid rgba(255, 243, 190, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(243, 210, 138, 0.5),
+    0 0 18px rgba(243, 210, 138, 0.75),
+    0 0 34px rgba(255, 208, 75, 0.38);
+  animation: mirilook-neon-upload-pulse 1.15s ease-in-out infinite;
+}
+
+.mirilook-neon-recommend-cta {
+  border: 1px solid rgba(255, 243, 190, 0.98);
+  box-shadow:
+    0 0 0 2px rgba(243, 210, 138, 0.48),
+    0 0 24px rgba(243, 210, 138, 0.86),
+    0 0 52px rgba(255, 208, 75, 0.48);
+  animation: mirilook-neon-recommend-pulse 1.05s ease-in-out infinite;
+}
+
+html[data-mirilook-theme="light"] .mirilook-neon-upload-cta,
+html[data-mirilook-theme="light"] .mirilook-neon-recommend-cta {
+  color: #171511 !important;
+  border-color: rgba(130, 83, 11, 0.55) !important;
+  box-shadow:
+    0 0 0 1px rgba(172, 111, 20, 0.2),
+    0 0 18px rgba(205, 139, 35, 0.38),
+    0 0 34px rgba(243, 210, 138, 0.34);
+}
+
+@keyframes mirilook-neon-upload-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: translateY(0);
+  }
+
+  50% {
+    filter: brightness(1.26);
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 2px rgba(255, 244, 206, 0.72),
+      0 0 24px rgba(243, 210, 138, 0.95),
+      0 0 44px rgba(255, 208, 75, 0.58);
+  }
+}
+
+@keyframes mirilook-neon-recommend-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    filter: brightness(1.24);
+    transform: translateY(-1px) scale(1.025);
+    box-shadow:
+      0 0 0 3px rgba(255, 244, 206, 0.7),
+      0 0 30px rgba(243, 210, 138, 1),
+      0 0 64px rgba(255, 208, 75, 0.62);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mirilook-neon-upload-cta,
+  .mirilook-neon-recommend-cta {
+    animation: none;
+  }
 }

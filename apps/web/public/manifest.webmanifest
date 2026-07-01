@@ -1,0 +1,118 @@
+﻿{
+  "name": "Miri Look",
+  "short_name": "미리룩",
+  "description": "AI salon consultation for hairstyle recommendations, voting, and stylist-ready references.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "browser"],
+  "background_color": "#11100e",
+  "theme_color": "#171511",
+  "categories": ["beauty", "lifestyle", "photo"],
+  "lang": "ko-KR",
+  "orientation": "portrait",
+  "shortcuts": [
+    {
+      "name": "상담 시작",
+      "short_name": "상담",
+      "description": "사진을 올리고 헤어스타일 추천을 시작합니다.",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/brand/mirilook-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "히스토리",
+      "short_name": "히스토리",
+      "description": "저장한 상담 결과를 확인합니다.",
+      "url": "/history",
+      "icons": [
+        {
+          "src": "/brand/mirilook-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "스타일 투표",
+      "short_name": "투표",
+      "description": "익명 스타일 투표와 DM 피드백을 확인합니다.",
+      "url": "/votes",
+      "icons": [
+        {
+          "src": "/brand/mirilook-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "커뮤니티",
+      "short_name": "커뮤니티",
+      "description": "사진 커뮤니티 피드와 회원 게시물을 확인합니다.",
+      "url": "/community",
+      "icons": [
+        {
+          "src": "/brand/mirilook-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "/brand/mirilook-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/mirilook-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/store/play-store-preview-1080x1920.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Miri Look mobile consultation flow"
+    },
+    {
+      "src": "/store/app-store-preview-1290x2796.png",
+      "sizes": "1290x2796",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Miri Look iOS preview"
+    },
+    {
+      "src": "/store/google-play-feature-1024x500.png",
+      "sizes": "1024x500",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Miri Look salon reference board"
+    }
+  ]
+}
